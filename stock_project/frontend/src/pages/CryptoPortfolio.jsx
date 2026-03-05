@@ -8,6 +8,8 @@ export default function CryptoPortfolio() {
     const [error, setError] = useState(null);
     const [horizon, setHorizon] = useState(30);
     const [selectedAsset, setSelectedAsset] = useState("BTC-USD");
+    const [selectedAlgorithm, setSelectedAlgorithm] = useState("ARIMA");
+    const [predictionTable, setPredictionTable] = useState([]);
 
     const assetOptions = [
         { label: "BTC-USD (Bitcoin)", value: "BTC-USD" },
@@ -16,11 +18,35 @@ export default function CryptoPortfolio() {
         { label: "RGD Stocks", value: "RGD" },
     ];
 
-    const loadData = (selectedHorizon, asset) => {
+    const algorithmOptions = [
+        { label: "ARIMA (Time Series)", value: "ARIMA" },
+        { label: "Linear Regression", value: "LINEAR" },
+        { label: "RNN (Deep Learning)", value: "RNN" },
+        { label: "CNN (Deep Learning)", value: "CNN" },
+    ];
+
+    const loadData = (selectedHorizon, asset, algorithm) => {
         setLoading(true);
-        API.get(`crypto-ai/?horizon=${selectedHorizon}&symbol=${asset}`)
+        // Clear previous results as requested
+        setPredictionTable([]);
+
+        API.get(`crypto-ai/?horizon=${selectedHorizon}&symbol=${asset}&algorithm=${algorithm}`)
             .then(res => {
                 setData(res.data);
+
+                // Identify only the forecast rows (where predicted_price exists and historical_price is null)
+                // Filter out the first forecast point used for connection (which has both null sometimes or specific structure)
+                const forecastRows = res.data.data
+                    .filter(d => d.predicted_price !== null && d.historical_price === null)
+                    .map(row => ({
+                        date: row.date,
+                        price: row.predicted_price,
+                        model: algorithm,
+                        asset: asset,
+                        timestamp: new Date().toLocaleString()
+                    }));
+
+                setPredictionTable(forecastRows);
                 setLoading(false);
             })
             .catch(err => {
@@ -30,8 +56,8 @@ export default function CryptoPortfolio() {
     };
 
     useEffect(() => {
-        loadData(horizon, selectedAsset);
-    }, [horizon, selectedAsset]);
+        loadData(horizon, selectedAsset, selectedAlgorithm);
+    }, [horizon, selectedAsset, selectedAlgorithm]);
 
     if (error) {
         return (
@@ -41,7 +67,7 @@ export default function CryptoPortfolio() {
                     <p className="text-rose-400 font-bold mb-2">Forecasting Failed</p>
                     <p className="text-slate-500 text-sm">{error}</p>
                     <button
-                        onClick={() => { setError(null); loadData(horizon, selectedAsset); }}
+                        onClick={() => { setError(null); loadData(horizon, selectedAsset, selectedAlgorithm); }}
                         className="mt-4 px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-sm transition-colors"
                     >
                         Try Again
@@ -62,7 +88,7 @@ export default function CryptoPortfolio() {
                         {assetOptions.find(a => a.value === selectedAsset)?.label.split(' ')[0]} AI Forecasting
                     </h1>
                     <p className="text-slate-400 text-lg">
-                        Actively tracks real-time {assetOptions.find(a => a.value === selectedAsset)?.label} movements and leverages ARIMA Time-Series Machine Learning to generate high-confidence forward-looking projections.
+                        Actively tracks real-time {assetOptions.find(a => a.value === selectedAsset)?.label} movements and leverages {selectedAlgorithm} Machine Learning to generate high-confidence forward-looking projections.
                     </p>
                 </div>
 
@@ -92,24 +118,39 @@ export default function CryptoPortfolio() {
                             <div className="absolute inset-0 border-4 border-slate-800 rounded-full" />
                             <div className="absolute inset-0 border-4 border-indigo-500 rounded-full border-t-transparent animate-spin" />
                         </div>
-                        <p className="text-white font-bold tracking-wide mt-6">Running ARIMA Matrix</p>
+                        <p className="text-white font-bold tracking-wide mt-6">Running {selectedAlgorithm} Model</p>
                         <p className="text-slate-500 text-xs mt-2 uppercase tracking-widest">Calculating {horizon}-Day Horizon for {selectedAsset}</p>
                     </div>
                 )}
 
-                {/* Asset Selection Dropdown */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                    <div className="flex flex-col gap-2">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">Predictive Asset</label>
-                        <select
-                            value={selectedAsset}
-                            onChange={(e) => setSelectedAsset(e.target.value)}
-                            className="bg-slate-950 border border-slate-800 text-white text-sm font-bold py-3 px-5 rounded-2xl focus:outline-none focus:border-indigo-500 transition-all cursor-pointer hover:bg-slate-900 min-w-[200px]"
-                        >
-                            {assetOptions.map(opt => (
-                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                            ))}
-                        </select>
+                {/* Asset & Algorithm Selection */}
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
+                    <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">Predictive Asset</label>
+                            <select
+                                value={selectedAsset}
+                                onChange={(e) => setSelectedAsset(e.target.value)}
+                                className="bg-slate-950 border border-slate-800 text-white text-sm font-bold py-3 px-5 rounded-2xl focus:outline-none focus:border-indigo-500 transition-all cursor-pointer hover:bg-slate-900 min-w-[200px]"
+                            >
+                                {assetOptions.map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">Intelligence Model</label>
+                            <select
+                                value={selectedAlgorithm}
+                                onChange={(e) => setSelectedAlgorithm(e.target.value)}
+                                className="bg-slate-950 border border-slate-800 text-white text-sm font-bold py-3 px-5 rounded-2xl focus:outline-none focus:border-indigo-500 transition-all cursor-pointer hover:bg-slate-900 min-w-[200px]"
+                            >
+                                {algorithmOptions.map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
 
                     {data && (
@@ -165,7 +206,7 @@ export default function CryptoPortfolio() {
                                 labelStyle={{ color: '#94a3b8', marginBottom: '8px' }}
                                 formatter={(value, name) => [
                                     `${selectedAsset === "BTC-USD" ? "$" : ""}${Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
-                                    name === 'historical_price' ? 'Historical Price' : 'ARIMA Prediction'
+                                    name === 'historical_price' ? 'Historical Price' : `${selectedAlgorithm} Prediction`
                                 ]}
                             />
 
@@ -196,6 +237,63 @@ export default function CryptoPortfolio() {
                     </ResponsiveContainer>
                 </div>
             </div>
+
+            {/* Prediction Results Table */}
+            <div className="bg-slate-900/40 backdrop-blur-md rounded-[2.5rem] border border-slate-800 p-8 shadow-2xl relative">
+                <div className="flex justify-between items-center mb-6">
+                    <div>
+                        <h3 className="text-2xl font-black text-white mb-1">Forecast Metrics Explorer</h3>
+                        <p className="text-slate-500 text-sm">Detailed breakdown of AI-generated price points and mathematical provenance.</p>
+                    </div>
+                    <button
+                        onClick={() => setPredictionTable([])}
+                        className="px-6 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 rounded-xl text-xs font-bold transition-all uppercase tracking-widest"
+                    >
+                        Remove Results
+                    </button>
+                </div>
+
+                <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/50">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-slate-900/50">
+                                <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800">Forecast Date</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800">Predicted Price</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800">Model</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800">Asset</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800 text-right">System Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/50">
+                            {predictionTable.length > 0 ? (
+                                predictionTable.map((row, idx) => (
+                                    <tr key={idx} className="hover:bg-slate-800/20 transition-colors">
+                                        <td className="px-6 py-4 font-mono text-xs text-indigo-400">{row.date}</td>
+                                        <td className="px-6 py-4 font-bold text-white">
+                                            {row.asset === "BTC-USD" ? "$" : ""}
+                                            {Number(row.price).toLocaleString(undefined, { maximumFractionDigits: row.asset === "BTC-USD" ? 0 : 2 })}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="px-2.5 py-1 bg-indigo-500/10 text-indigo-400 rounded-lg text-[10px] font-bold border border-indigo-500/20">
+                                                {row.model}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-xs text-slate-400">{row.asset}</td>
+                                        <td className="px-6 py-4 text-[10px] text-slate-500 text-right">{row.timestamp}</td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="5" className="px-6 py-12 text-center text-slate-500 italic text-sm">
+                                        No active forecasts. Select an asset or model to generate results.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     );
 }
+

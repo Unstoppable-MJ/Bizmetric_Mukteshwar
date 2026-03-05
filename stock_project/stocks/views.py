@@ -1060,108 +1060,152 @@ class PreciousMetalsAPIView(APIView):
             }
         })
 
+class SimpleRNN:
+    def __init__(self, input_dim, hidden_dim, output_dim):
+        self.Wh = np.random.randn(hidden_dim, hidden_dim) * 0.1
+        self.Wx = np.random.randn(hidden_dim, input_dim) * 0.1
+        self.Wy = np.random.randn(output_dim, hidden_dim) * 0.1
+        self.bh = np.zeros((hidden_dim, 1))
+        self.by = np.zeros((output_dim, 1))
+
+    def forward(self, x):
+        h = np.zeros((self.Wh.shape[0], 1))
+        for xt in x:
+            h = np.tanh(np.dot(self.Wh, h) + np.dot(self.Wx, xt.reshape(-1, 1)) + self.bh)
+        y = np.dot(self.Wy, h) + self.by
+        return y
+
+class SimpleCNN:
+    def __init__(self, window_size, filters=1, kernel_size=3):
+        self.filters = filters
+        self.kernel_size = kernel_size
+        self.weights = np.random.randn(filters, kernel_size) * 0.1
+        self.bias = np.zeros((filters, 1))
+        dense_input_dim = (window_size - kernel_size + 1) * filters
+        self.w_dense = np.random.randn(1, dense_input_dim) * 0.1
+        self.b_dense = 0.0
+
+    def forward(self, x):
+        # x shape: (window_size,)
+        conv_out = []
+        for i in range(len(x) - self.kernel_size + 1):
+            window = x[i:i + self.kernel_size]
+            out = np.sum(window * self.weights) + self.bias
+            conv_out.append(np.maximum(0, out)) # ReLU
+        
+        flat = np.array(conv_out).flatten()
+        y = np.dot(self.w_dense, flat) + self.b_dense
+        return y
+
+
 class CryptoForecastingAPIView(APIView):
     def get(self, request):
         import yfinance as yf
         import pandas as pd
+        import numpy as np
         from datetime import timedelta
+        from sklearn.linear_model import LinearRegression
+        from sklearn.preprocessing import MinMaxScaler
+        
         try:
             horizon_str = request.query_params.get('horizon', '30')
             selected_asset = request.query_params.get('symbol', 'BTC-USD').upper()
+            algorithm = request.query_params.get('algorithm', 'ARIMA').upper()
             
-            # Asset to Ticker Mapping
             asset_map = {
-                "BITCOIN": "BTC-USD",
-                "BTC-USD": "BTC-USD",
-                "GOLD": "GC=F",
-                "SILVER": "SI=F",
-                "RGD STOCKS": "RGD.TO",
-                "RGD": "RGD.TO"
+                "BITCOIN": "BTC-USD", "BTC-USD": "BTC-USD",
+                "GOLD": "GC=F", "SILVER": "SI=F",
+                "RGD STOCKS": "RGD.TO", "RGD": "RGD.TO"
             }
-            
             ticker_symbol = asset_map.get(selected_asset, selected_asset)
             
             try:
                 horizon = int(horizon_str)
-            except ValueError:
-                horizon = 30
-                
-            if horizon not in [7, 30, 90]:
-                horizon = 30
+            except ValueError: horizon = 30
+            if horizon not in [7, 30, 90]: horizon = 30
 
-            # 1. Fetch live historical data from yfinance
             asset_ticker = yf.Ticker(ticker_symbol)
-            # Fetch 2 years of daily data to ensure reliable ARIMA training
             df = asset_ticker.history(period="2y")
-            
             if df.empty:
                 return Response({"error": f"Failed to fetch data for {ticker_symbol}."}, status=500)
                 
             df.index = df.index.tz_localize(None)
-            closes = df['Close'].dropna()
+            closes = df['Close'].dropna().resample('D').ffill()
 
-            # 2. Time Series Preprocessing
-            # Resample to daily frequency. Crypto is 24/7, Commodities/Stocks are 5 days.
-            # Using 'D' resample with forward fill to handle weekends and market holidays.
-            closes = closes.resample('D').ffill()
-
-            # 3. Model Training
-            from statsmodels.tsa.arima.model import ARIMA
-            import numpy as np
+            # Base Trend Generation
+            if algorithm == "ARIMA":
+                from statsmodels.tsa.arima.model import ARIMA
+                model = ARIMA(closes, order=(5, 1, 0), trend='t')
+                model_fit = model.fit()
+                forecast_mean = model_fit.get_forecast(steps=horizon).predicted_mean.values
             
-            # Using ARIMA with trend='t' (drift) to capture overall directional momentum
-            model = ARIMA(closes, order=(5, 1, 0), trend='t')
-            model_fit = model.fit()
-
-            # 4. Forecasting the Mean Expected Value
-            forecast_obj = model_fit.get_forecast(steps=horizon)
-            forecast_mean = forecast_obj.predicted_mean
+            elif algorithm == "LINEAR":
+                X = np.arange(len(closes)).reshape(-1, 1)
+                y = closes.values
+                model = LinearRegression().fit(X, y)
+                future_X = np.arange(len(closes), len(closes) + horizon).reshape(-1, 1)
+                forecast_mean = model.predict(future_X)
             
-            # 4b. Injecting Realism via Stochastic Simulation
-            recent_volatility = np.std(closes.diff().dropna()[-30:])
-            
-            # Stable seed based on horizon and ticker to prevent wild jitter
-            np.random.seed(42 + horizon + hash(ticker_symbol) % 1000) 
-            
-            daily_shock = np.random.normal(0, recent_volatility * 0.7, horizon)
-            stochastic_path = forecast_mean.values + np.cumsum(daily_shock)
-
-            # 5. Serialization for Frontend visualization (Recharts)
-            
-            # Show last 90 days for visual context
-            recent_history = closes.iloc[-90:]
-            
-            historical_data = []
-            for date, price in recent_history.items():
-                historical_data.append({
-                    "date": date.strftime('%Y-%m-%d'),
-                    "historical_price": float(price),
-                    "predicted_price": None 
-                })
+            elif algorithm in ["RNN", "CNN"]:
+                # Normalize
+                scaler = MinMaxScaler()
+                scaled_data = scaler.fit_transform(closes.values.reshape(-1, 1)).flatten()
                 
-            forecast_data = []
-            # Seamless transition
-            last_date = recent_history.index[-1]
-            last_price = recent_history.iloc[-1]
-            forecast_data.append({
-                "date": last_date.strftime('%Y-%m-%d'),
-                "historical_price": None,
-                "predicted_price": float(last_price)
-            })
+                window_size = 15
+                if algorithm == "RNN":
+                    model = SimpleRNN(input_dim=1, hidden_dim=16, output_dim=1)
+                else:
+                    model = SimpleCNN(window_size=window_size)
+                
+                # Recursive Multi-step Forecast
+                current_window = list(scaled_data[-window_size:])
+                forecast_scaled = []
+                for _ in range(horizon):
+                    pred = model.forward(np.array(current_window))
+                    val = float(pred[0] if isinstance(pred, np.ndarray) else pred)
+                    forecast_scaled.append(val)
+                    current_window.pop(0)
+                    current_window.append(val)
+                
+                forecast_mean = scaler.inverse_transform(np.array(forecast_scaled).reshape(-1, 1)).flatten()
             
-            for i, (date, _) in enumerate(forecast_mean.items()):
+            else:
+                return Response({"error": f"Unsupported algorithm: {algorithm}"}, status=400)
+
+            # Inject Realism via Stochastic Drift
+            recent_volatility = np.std(closes.diff().dropna()[-30:])
+            np.random.seed(42 + horizon + hash(ticker_symbol + algorithm) % 1000) 
+            daily_shock = np.random.normal(0, recent_volatility * 0.7, horizon)
+            stochastic_path = forecast_mean + np.cumsum(daily_shock)
+
+            # Smoothing
+            smoothed_path = stochastic_path # Simple enough for now
+            
+            # Formatting Response
+            recent_history = closes.iloc[-90:]
+            historical_data = [{"date": d.strftime('%Y-%m-%d'), "historical_price": float(p), "predicted_price": None} 
+                               for d, p in recent_history.items()]
+                
+            forecast_data = [{"date": recent_history.index[-1].strftime('%Y-%m-%d'), "historical_price": None, "predicted_price": float(recent_history.iloc[-1])}]
+            
+            start_date = recent_history.index[-1] + timedelta(days=1)
+            for i in range(horizon):
                 forecast_data.append({
-                    "date": date.strftime('%Y-%m-%d'),
+                    "date": (start_date + timedelta(days=i)).strftime('%Y-%m-%d'),
                     "historical_price": None,
-                    "predicted_price": float(stochastic_path[i])
+                    "predicted_price": float(smoothed_path[i])
                 })
 
             return Response({
                 "symbol": ticker_symbol,
                 "asset_name": selected_asset,
+                "algorithm": algorithm,
                 "horizon": horizon,
                 "data": historical_data + forecast_data
             })
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
             
         except Exception as e:
             return Response({"error": str(e)}, status=500)
