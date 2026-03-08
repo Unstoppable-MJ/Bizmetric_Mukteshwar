@@ -1,0 +1,16 @@
+creation_timestamp: 1772779095652
+current_stage: Staging
+deployment_job_state: null
+description: null
+last_updated_timestamp: 1772779095752
+model_id: m-cdd2302524474d67856659602d1a6d5c
+name: arima_btc_model
+run_id: ed8f7a46b3f74fd3b0d777266a57460f
+run_link: null
+source: models:/m-cdd2302524474d67856659602d1a6d5c
+status: READY
+status_message: null
+storage_location: file:D:/Project_Intership/ML_Dashboard/btc_forecasting/mlruns/337948536476194663/models/m-cdd2302524474d67856659602d1a6d5c/artifacts
+user_id: null
+version: 2
+workspace: default

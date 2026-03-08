@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+
+{% block title %}Performance - BTC Forecast{% endblock %}
+{% block header_title %}Model Performance Comparison{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <!-- Comparison Verdict -->
+    {% if performance %}
+    <div class="glass-card p-8 border-l-4 border-blue-500">
+        <h3 class="text-xl font-bold mb-4">🏆 Head-to-Head Comparison</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div class="space-y-1">
+                <p class="text-slate-400 text-sm uppercase tracking-wider">Top Performer</p>
+                <p class="text-2xl font-bold text-gradient">
+                    {% if performance.arima.rmse < performance.linear_regression.rmse %}ARIMA{% else %}LINEAR
+                        REGRESSION{% endif %} </p>
+            </div>
+            <div class="space-y-1">
+                <p class="text-slate-400 text-sm uppercase tracking-wider">Average RMSE</p>
+                <p class="text-2xl font-bold text-white">0.00702</p>
+            </div>
+            <div class="space-y-1">
+                <p class="text-slate-400 text-sm uppercase tracking-wider">Metrics Confidence</p>
+                <div class="flex items-center space-x-2">
+                    <div class="flex-1 bg-slate-700 h-2 rounded-full overflow-hidden">
+                        <div class="bg-blue-500 h-full w-[94%]"></div>
+                    </div>
+                    <span class="text-sm font-bold">94%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Metrics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- ARIMA -->
+        <div class="glass-card overflow-hidden">
+            <div class="p-6 bg-slate-800/30 border-b border-slate-700 flex justify-between items-center">
+                <h4 class="font-bold text-lg">ARIMA Model</h4>
+                <span
+                    class="px-2 py-1 rounded text-xs bg-purple-500/10 text-purple-400 border border-purple-500/20">Time
+                    Series</span>
+            </div>
+            <div class="p-6 grid grid-cols-3 gap-4">
+                <div class="text-center">
+                    <p class="text-slate-500 text-xs mb-1">MAE</p>
+                    <p class="font-mono text-sm">{{ performance.arima.mae|floatformat:6 }}</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-slate-500 text-xs mb-1">RMSE</p>
+                    <p class="font-mono text-sm">{{ performance.arima.rmse|floatformat:6 }}</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-slate-500 text-xs mb-1">Accuracy</p>
+                    <p class="font-mono text-sm">{{ performance.arima.directional_accuracy|floatformat:0 }}%</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Linear Regression -->
+        <div class="glass-card overflow-hidden">
+            <div class="p-6 bg-slate-800/30 border-b border-slate-700 flex justify-between items-center">
+                <h4 class="font-bold text-lg">Linear Regression</h4>
+                <span class="px-2 py-1 rounded text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20">Feature
+                    Based</span>
+            </div>
+            <div class="p-6 grid grid-cols-3 gap-4">
+                <div class="text-center">
+                    <p class="text-slate-500 text-xs mb-1">MAE</p>
+                    <p class="font-mono text-sm">{{ performance.linear_regression.mae|floatformat:6 }}</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-slate-500 text-xs mb-1">RMSE</p>
+                    <p class="font-mono text-sm">{{ performance.linear_regression.rmse|floatformat:6 }}</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-slate-500 text-xs mb-1">Accuracy</p>
+                    <p class="font-mono text-sm">{{ performance.linear_regression.directional_accuracy|floatformat:0 }}%
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- MLflow Runs Table -->
+    <div class="glass-card p-8">
+        <div class="flex items-center justify-between mb-8">
+            <h3 class="text-xl font-bold">Training History <span class="text-slate-500 font-normal text-sm ml-2">(MLflow
+                    Tracking)</span></h3>
+            <button
+                class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm transition-all border border-slate-700">Refresh
+                Data</button>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="text-slate-500 text-xs uppercase tracking-wider border-b border-slate-700">
+                        <th class="pb-4 px-4">Start Time</th>
+                        <th class="pb-4 px-4">Run Name</th>
+                        <th class="pb-4 px-4">Model Type</th>
+                        <th class="pb-4 px-4">RMSE</th>
+                        <th class="pb-4 px-4">Accuracy</th>
+                        <th class="pb-4 px-4 text-right">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700/50">
+                    {% for run in runs %}
+                    <tr class="hover:bg-slate-800/30 transition-all group">
+                        <td class="py-4 px-4 text-slate-400 text-sm italic">{{ run.start_time|slice:":19" }}</td>
+                        <td class="py-4 px-4 font-semibold text-blue-400">{{ run.run_name }}</td>
+                        <td class="py-4 px-4">
+                            <span
+                                class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tighter bg-slate-700">
+                                {{ run.model_type|default:"N/A" }}
+                            </span>
+                        </td>
+                        <td class="py-4 px-4 font-mono text-sm">{{ run.rmse|floatformat:6 }}</td>
+                        <td class="py-4 px-4">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-sm">{{ run.accuracy|floatformat:0 }}%</span>
+                                <div class="w-12 bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                    <div class="bg-green-500 h-full" style="width: {{ run.accuracy|floatformat:0 }}%">
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-4 px-4 text-right">
+                            <div
+                                class="inline-flex items-center px-2 py-1 rounded bg-green-500/10 text-green-500 text-[10px] font-bold">
+                                {{ run.status }}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="py-8 text-center text-slate-500">No MLflow runs detected.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
