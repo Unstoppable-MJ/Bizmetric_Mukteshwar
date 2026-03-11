@@ -1,4 +1,5 @@
 from django.contrib.auth import authenticate
+from django.contrib.auth.models import User
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -15,6 +16,26 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from datetime import datetime, timedelta
 
+def calculate_stock_metrics(current_price, max_price, pe_ratio):
+    current_price = float(current_price) if current_price else 0.0
+    max_price = float(max_price) if max_price else 0.0
+    pe_ratio = float(pe_ratio) if pe_ratio else 15.0
+
+    discount_level = 0.0
+    if max_price > 0 and current_price > 0:
+        discount = ((max_price - current_price) / max_price) * 100
+        discount_level = discount  # Allow negative if somehow current > max
+
+    # Opportunity Score = (0.5 * Discount Level) + (0.3 * Momentum Score) + (0.2 * Value Score)
+    # Value Score: Lower PE is better. Baseline PE 15 maps to a decent score.
+    value_score = max(0.0, 100.0 - (pe_ratio * 2.0))
+    
+    # Momentum Score: Proxy using distance to 52W High. Closer to max = higher momentum.
+    momentum_score = (current_price / max_price) * 100.0 if max_price > 0 else 50.0
+
+    opportunity_score = (0.5 * discount_level) + (0.3 * momentum_score) + (0.2 * value_score)
+    
+    return round(discount_level, 2), round(opportunity_score, 2)
 
 # -----------------------------
 # 🔐 LOGIN API
@@ -27,15 +48,54 @@ class LoginAPIView(APIView):
         user = authenticate(username=username, password=password)
 
         if user:
+            # We will return the user ID to the frontend to pass in requests 
+            # (In a real app, use JWT/Session, but for simplicity here we pass user_id)
             return Response({
                 "message": "Login successful",
-                "username": user.username
+                "username": user.username,
+                "user_id": user.id
             })
         else:
             return Response(
-                {"error": "Invalid credentials"},
+                {"error": "Invalid username or password"},
                 status=status.HTTP_401_UNAUTHORIZED
             )
+
+
+# -----------------------------
+# 📝 REGISTER API
+# -----------------------------
+class RegisterAPIView(APIView):
+    def post(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
+        email = request.data.get("email")
+        first_name = request.data.get("first_name", "")
+
+        if not username or not password:
+            return Response(
+                {"error": "Username and password are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if User.objects.filter(username=username).exists():
+            return Response(
+                {"error": "Username already exists"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user = User.objects.create_user(
+            username=username,
+            password=password,
+            email=email,
+            first_name=first_name
+        )
+
+        return Response({
+            "message": "Account created successfully. Welcome to Finova.",
+            "username": user.username,
+            "user_id": user.id
+        }, status=status.HTTP_201_CREATED)
 
 
 # -----------------------------
@@ -43,28 +103,36 @@ class LoginAPIView(APIView):
 # -----------------------------
 class PortfolioListAPIView(APIView):
     def get(self, request):
-        portfolios = Portfolio.objects.all()
-        data = [{"id": p.id, "name": p.name, "description": p.description} for p in portfolios]
+        user_id = request.GET.get('user_id')
+        if not user_id:
+            return Response({"error": "user_id is required to fetch portfolios"}, status=status.HTTP_400_BAD_REQUEST)
+
+        from django.db.models import Q
+        portfolios = Portfolio.objects.filter(Q(user_id=user_id) | Q(portfolio_type='ai_builtin'))
+        data = [{"id": p.id, "name": p.name, "description": p.description, "type": p.portfolio_type} for p in portfolios]
         return Response(data)
 
     def post(self, request):
         name = request.data.get("name")
         description = request.data.get("description", "")
+        user_id = request.data.get("user_id")
         
-        if not name:
-            return Response({"error": "Portfolio name is required"}, status=status.HTTP_400_BAD_REQUEST)
+        if not name or not user_id:
+            return Response({"error": "Portfolio name and user_id are required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # For now, just link to the first user or create one since there's no auth
-        from django.contrib.auth.models import User
-        user = User.objects.first()
-        if not user:
-            user = User.objects.create(username="testuser")
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({"error": "Invalid user"}, status=status.HTTP_400_BAD_REQUEST)
 
-        portfolio = Portfolio.objects.create(name=name, description=description, user=user)
+        is_ai = request.data.get("is_ai", False)
+        portfolio_type = 'ai_custom' if is_ai else 'standard'
+
+        portfolio = Portfolio.objects.create(name=name, description=description, user=user, portfolio_type=portfolio_type)
 
         return Response({
             "message": "Portfolio created successfully",
-            "portfolio": {"id": portfolio.id, "name": portfolio.name, "description": portfolio.description}
+            "portfolio": {"id": portfolio.id, "name": portfolio.name, "description": portfolio.description, "type": portfolio.portfolio_type}
         }, status=status.HTTP_201_CREATED)
 
     def patch(self, request):
@@ -128,10 +196,8 @@ class AddStockAPIView(APIView):
                         status=status.HTTP_400_BAD_REQUEST
                     )
 
-                # Basic fair value logic
-                fair_price = current_price * 1.1
-                discount_level = ((fair_price - current_price) / fair_price) * 100
-                opportunity = discount_level if discount_level > 0 else 0
+                # Calculate authentic metrics
+                discount_level, opportunity = calculate_stock_metrics(current_price, max_price, pe_ratio)
 
                 stock_obj, created = Stock.objects.get_or_create(
                     symbol=yahoo_symbol,
@@ -194,6 +260,15 @@ class StockListAPIView(APIView):
         else:
             stocks = PortfolioStock.objects.all()
 
+        # Dynamically recalculate legacy stocks to ensure they display correctly
+        for stock in stocks:
+            disc, opp = calculate_stock_metrics(stock.current_price, stock.max_price, stock.pe_ratio)
+            # Update values if they differ to auto-correct old records
+            if abs(float(stock.discount_level) - disc) > 0.01 or abs(float(stock.opportunity) - opp) > 0.01:
+                stock.discount_level = disc
+                stock.opportunity = opp
+                stock.save()
+
         serializer = StockListSerializer(stocks, many=True)
         return Response(serializer.data)
 
@@ -208,24 +283,33 @@ class StockPreviewAPIView(APIView):
         if not symbol:
             return Response({"error": "Symbol required"}, status=400)
 
-        yahoo_symbol = symbol.upper() + ".NS"
+        yahoo_symbol = symbol.upper() if symbol.upper().endswith(".NS") else symbol.upper() + ".NS"
 
         try:
             ticker = yf.Ticker(yahoo_symbol)
             data = ticker.info
 
-            current_price = data.get("currentPrice")
-            pe_ratio = data.get("trailingPE")
+            current_price = data.get("currentPrice") or data.get("regularMarketPrice") or data.get("previousClose")
+            
+            if current_price is None:
+                hist_fallback = ticker.history(period="5d")
+                if not hist_fallback.empty:
+                    current_price = float(hist_fallback['Close'].iloc[-1])
+                else:
+                    return Response({"error": "Invalid symbol or data unavailable"}, status=400)
+
+            pe_ratio = data.get("trailingPE", 0)
+            if pe_ratio is None: pe_ratio = 15.0 # Fallback
+
             company_name = data.get("shortName", symbol)
-            max_price = data.get("fiftyTwoWeekHigh", 0)
+            
+            max_price = data.get("fiftyTwoWeekHigh") or data.get("regularMarketDayHigh")
+            if max_price is None:
+                max_price = current_price * 1.15
+            
             sector = data.get("sector", "Unknown")
 
-            if current_price is None:
-                return Response({"error": "Invalid symbol"}, status=400)
-
-            fair_price = current_price * 1.1
-            discount_level = ((fair_price - current_price) / fair_price) * 100
-            opportunity = discount_level if discount_level > 0 else 0
+            discount_level, opportunity = calculate_stock_metrics(current_price, max_price, pe_ratio)
 
             # Fetch 1 month historical data for the chart
             hist_data = ticker.history(period="1mo")
@@ -248,7 +332,7 @@ class StockPreviewAPIView(APIView):
                 "discount_level": discount_level,
                 "opportunity": opportunity,
                 "history": history_list
-            })
+            }, status=200)
 
         except Exception as e:
             return Response({"error": str(e)}, status=400)
@@ -1535,11 +1619,40 @@ class CryptoForecastingAPIView(APIView):
                 forecast_mean = model_fit.get_forecast(steps=horizon).predicted_mean.values
             
             elif algorithm == "LINEAR":
-                X = np.arange(len(closes)).reshape(-1, 1)
-                y = closes.values
-                model = LinearRegression().fit(X, y)
-                future_X = np.arange(len(closes), len(closes) + horizon).reshape(-1, 1)
-                forecast_mean = model.predict(future_X)
+                from sklearn.linear_model import Ridge
+                from sklearn.preprocessing import StandardScaler
+                df_ml = pd.DataFrame({'Close': closes})
+                for i in range(1, 6): df_ml[f'Lag_{i}'] = df_ml['Close'].shift(i)
+                df_ml['SMA_10'] = df_ml['Close'].rolling(window=10).mean()
+                df_ml = df_ml.dropna()
+                
+                features = [f'Lag_{i}' for i in range(1, 6)] + ['SMA_10']
+                X_train = df_ml[features].values
+                y_train = df_ml['Close'].values
+                
+                scaler = StandardScaler()
+                X_train_scaled = scaler.fit_transform(X_train)
+                
+                model = Ridge(alpha=10.0)
+                model.fit(X_train_scaled, y_train)
+                
+                forecast_mean = []
+                current_window = df_ml.iloc[-1].copy()
+                
+                for _ in range(horizon):
+                    x_input = np.array([[current_window[f'Lag_{i}'] for i in range(1, 6)] + [current_window['SMA_10']]])
+                    x_scaled = scaler.transform(x_input)
+                    pred = model.predict(x_scaled)[0]
+                    forecast_mean.append(pred)
+                    
+                    # Shift window
+                    for i in range(5, 1, -1):
+                        current_window[f'Lag_{i}'] = current_window[f'Lag_{i-1}']
+                    current_window['Lag_1'] = pred
+                    # Approximation for future SMA
+                    current_window['SMA_10'] = (current_window['SMA_10'] * 9 + pred) / 10
+                    
+                forecast_mean = np.array(forecast_mean)
             
             # Split data for training the forecasting model
             if algorithm in ["RNN", "CNN"]:
@@ -1579,11 +1692,38 @@ class CryptoForecastingAPIView(APIView):
                 forecast_mean = model_fit.get_forecast(steps=horizon).predicted_mean.values
             
             elif algorithm == "LINEAR":
-                X = np.arange(len(closes)).reshape(-1, 1)
-                y = closes.values
-                model = LinearRegression().fit(X, y)
-                future_X = np.arange(len(closes), len(closes) + horizon).reshape(-1, 1)
-                forecast_mean = model.predict(future_X)
+                from sklearn.linear_model import Ridge
+                from sklearn.preprocessing import StandardScaler
+                df_ml = pd.DataFrame({'Close': closes})
+                for i in range(1, 6): df_ml[f'Lag_{i}'] = df_ml['Close'].shift(i)
+                df_ml['SMA_10'] = df_ml['Close'].rolling(window=10).mean()
+                df_ml = df_ml.dropna()
+                
+                features = [f'Lag_{i}' for i in range(1, 6)] + ['SMA_10']
+                X_train = df_ml[features].values
+                y_train = df_ml['Close'].values
+                
+                scaler = StandardScaler()
+                X_train_scaled = scaler.fit_transform(X_train)
+                
+                model = Ridge(alpha=10.0)
+                model.fit(X_train_scaled, y_train)
+                
+                forecast_mean = []
+                current_window = df_ml.iloc[-1].copy()
+                
+                for _ in range(horizon):
+                    x_input = np.array([[current_window[f'Lag_{i}'] for i in range(1, 6)] + [current_window['SMA_10']]])
+                    x_scaled = scaler.transform(x_input)
+                    pred = model.predict(x_scaled)[0]
+                    forecast_mean.append(pred)
+                    
+                    for i in range(5, 1, -1):
+                        current_window[f'Lag_{i}'] = current_window[f'Lag_{i-1}']
+                    current_window['Lag_1'] = pred
+                    current_window['SMA_10'] = (current_window['SMA_10'] * 9 + pred) / 10
+                    
+                forecast_mean = np.array(forecast_mean)
             
             else:
                 return Response({"error": f"Unsupported algorithm: {algorithm}"}, status=400)
@@ -1601,8 +1741,13 @@ class CryptoForecastingAPIView(APIView):
             daily_shock = np.random.normal(0, recent_volatility * 0.7, horizon)
             stochastic_path = forecast_mean + np.cumsum(daily_shock)
 
-            # Smoothing
-            smoothed_path = stochastic_path # Simple enough for now
+            # Smoothing (Exponential Moving Average)
+            smoothed_path = []
+            alpha = 0.3
+            ema = stochastic_path[0]
+            for p in stochastic_path:
+                ema = alpha * p + (1 - alpha) * ema
+                smoothed_path.append(ema)
             
             # Formatting Response
             recent_history = closes.iloc[-90:]
@@ -1672,7 +1817,7 @@ class ModelBacktestAPIView(APIView):
             # 1. Fetch 2 years of data dynamically
             df = yf.download(ticker, period="2y", progress=False)
             if df.empty:
-                return Response({"error": f"Failed to fetch historical data for {ticker}."}, status=500)
+                return Response({"ticker": ticker, "results": []}, status=200)
             
             closes = df['Close'].dropna()
             if isinstance(closes, pd.DataFrame):
@@ -1684,7 +1829,7 @@ class ModelBacktestAPIView(APIView):
             test_data = closes[train_size:]
             
             if len(test_data) < 10:
-                return Response({"error": f"Not enough historical data for {ticker} to perform a 80/20 split backtest."}, status=400)
+                return Response({"ticker": ticker, "results": []}, status=200)
 
             y_true = test_data.values
             results = []
@@ -1712,18 +1857,49 @@ class ModelBacktestAPIView(APIView):
                 })
 
             # --- REGRESSION MODELS ---
-            X_train = np.arange(len(train_data)).reshape(-1, 1)
-            X_test = np.arange(len(train_data), len(train_data) + len(test_data)).reshape(-1, 1)
-            y_train = train_data.values
+            # Prepare features for Ridge and Lasso
+            df_ml = pd.DataFrame({'Close': closes})
+            for i in range(1, 6): df_ml[f'Lag_{i}'] = df_ml['Close'].shift(i)
+            df_ml['SMA_10'] = df_ml['Close'].rolling(window=10).mean()
+            df_ml = df_ml.dropna()
 
-            lr_model = LinearRegression().fit(X_train, y_train)
-            record_metrics("Linear Regression", lr_model.predict(X_test))
+            if len(df_ml) < 50: # Not enough data for feature-based regression
+                # Fallback to simple prediction if not enough data for features
+                record_metrics("Linear Regression (Fallback)", [train_data.iloc[-1]] * len(test_data))
+                record_metrics("Ridge Regression (Fallback)", [train_data.iloc[-1]] * len(test_data))
+                record_metrics("Lasso Regression (Fallback)", [train_data.iloc[-1]] * len(test_data))
+            else:
+                # Align train/test splits with feature-engineered DataFrame
+                train_ml_df = df_ml[df_ml.index.isin(train_data.index)]
+                test_ml_df = df_ml[df_ml.index.isin(test_data.index)]
 
-            ridge_model = Ridge(alpha=1.0).fit(X_train, y_train)
-            record_metrics("Ridge Regression", ridge_model.predict(X_test))
+                features = [f'Lag_{i}' for i in range(1, 6)] + ['SMA_10']
+                
+                X_train_ml = train_ml_df[features].values
+                y_train_ml = train_ml_df['Close'].values
+                X_test_ml = test_ml_df[features].values
+                
+                scaler = StandardScaler()
+                X_train_scaled = scaler.fit_transform(X_train_ml)
+                X_test_scaled = scaler.transform(X_test_ml)
 
-            lasso_model = Lasso(alpha=0.1).fit(X_train, y_train)
-            record_metrics("Lasso Regression", lasso_model.predict(X_test))
+                # Linear Regression (using original time-based features for comparison)
+                X_train_time = np.arange(len(train_data)).reshape(-1, 1)
+                X_test_time = np.arange(len(train_data), len(train_data) + len(test_data)).reshape(-1, 1)
+                y_train_time = train_data.values
+                lr_model = LinearRegression().fit(X_train_time, y_train_time)
+                record_metrics("Linear Regression", lr_model.predict(X_test_time))
+
+                # Ridge Regression with Lag and SMA features
+                ridge_model = Ridge(alpha=10.0) # Using alpha=10.0 as in CryptoForecastingAPIView
+                ridge_model.fit(X_train_scaled, y_train_ml)
+                record_metrics("Ridge Regression", ridge_model.predict(X_test_scaled))
+
+                # Lasso Regression with Lag and SMA features
+                lasso_model = Lasso(alpha=0.1)
+                lasso_model.fit(X_train_scaled, y_train_ml)
+                record_metrics("Lasso Regression", lasso_model.predict(X_test_scaled))
+
 
             # --- TIME SERIES MODELS ---
             try:

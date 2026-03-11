@@ -11,7 +11,8 @@ export default function ModelBacktestingTable({ symbol, selectedAlgorithm }) {
         setLoadingBacktest(true);
         setBacktestingResults([]);
 
-        API.get(`backtest/?ticker=${asset}`)
+        const safeAsset = asset.includes(".NS") ? asset : `${asset}.NS`;
+        API.get(`backtest/?ticker=${safeAsset}`)
             .then(res => {
                 setBacktestingResults(res.data.results || []);
                 setActualTicker(res.data.ticker || asset);
@@ -88,7 +89,7 @@ export default function ModelBacktestingTable({ symbol, selectedAlgorithm }) {
                         ) : (
                             <tr>
                                 <td colSpan="6" className="px-6 py-12 text-center text-slate-500 italic text-sm">
-                                    No statistical backtesting metrics available for {symbol}.
+                                    No statistical backtesting metrics available for {actualTicker}.
                                 </td>
                             </tr>
                         )}

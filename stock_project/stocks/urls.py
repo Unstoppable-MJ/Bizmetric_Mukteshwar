@@ -1,6 +1,7 @@
 from django.urls import path
 from .views import (
     LoginAPIView,
+    RegisterAPIView,
     PortfolioListAPIView,
     AddStockAPIView,
     StockListAPIView,
@@ -20,6 +21,7 @@ from .views import (
 
 urlpatterns = [
     path('login/', LoginAPIView.as_view()),
+    path('register/', RegisterAPIView.as_view()),
     path('portfolios/', PortfolioListAPIView.as_view()),
     path('add-stock/', AddStockAPIView.as_view()),
     path('portfolio-stocks/', StockListAPIView.as_view()),

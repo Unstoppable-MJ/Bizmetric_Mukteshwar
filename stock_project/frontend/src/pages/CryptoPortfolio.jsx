@@ -8,16 +8,16 @@ export default function CryptoPortfolio() {
     const [error, setError] = useState(null);
     const [horizon, setHorizon] = useState(30);
     const [selectedAsset, setSelectedAsset] = useState("BTC-USD");
-    const [selectedAlgorithm, setSelectedAlgorithm] = useState("ARIMA");
+    const [selectedAlgorithm, setSelectedAlgorithm] = useState("RNN");
     const [predictionTable, setPredictionTable] = useState([]);
     const [backtestingResults, setBacktestingResults] = useState([]);
     const [loadingBacktest, setLoadingBacktest] = useState(true);
 
     const assetOptions = [
         { label: "BTC-USD (Bitcoin)", value: "BTC-USD" },
-        { label: "Gold", value: "GOLD" },
-        { label: "Silver", value: "SILVER" },
-        { label: "RGD Stocks", value: "RGD" },
+        { label: "ETH-USD (Ethereum)", value: "ETH-USD" },
+        { label: "SOL-USD (Solana)", value: "SOL-USD" },
+        { label: "BNB-USD (Binance)", value: "BNB-USD" },
     ];
 
     const algorithmOptions = [

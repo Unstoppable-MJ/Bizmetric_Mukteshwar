@@ -28,7 +28,8 @@ export default function StockDetailPanel({ symbol, allStocks = [], portfolioId, 
     useEffect(() => {
         if (symbol) {
             setLoadingPreview(true);
-            API.get(`stock-preview/?symbol=${symbol}`)
+            const safeSymbol = symbol.includes(".NS") ? symbol : `${symbol}.NS`;
+            API.get(`stock-preview/?symbol=${safeSymbol}`)
                 .then((res) => {
                     setPreview(res.data);
                     setLoadingPreview(false);

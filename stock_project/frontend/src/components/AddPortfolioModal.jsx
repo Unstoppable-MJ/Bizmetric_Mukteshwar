@@ -5,22 +5,31 @@ import { motion, AnimatePresence } from "framer-motion";
 export default function AddPortfolioModal({ isOpen, onClose, onPortfolioAdded }) {
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
+    const [isAI, setIsAI] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+
+    // Make sure we have a user_id
+    const userId = localStorage.getItem("user_id");
 
     if (!isOpen) return null;
 
     const handleSubmit = (e) => {
         e.preventDefault();
         if (!name.trim()) return;
+        if (!userId) {
+            setError("Authentication error. Please log in again.");
+            return;
+        }
 
         setLoading(true);
         setError(null);
 
-        API.post("portfolios/", { name, description })
+        API.post("portfolios/", { name, description, user_id: userId, is_ai: isAI })
             .then((res) => {
                 setName("");
                 setDescription("");
+                setIsAI(false);
                 setLoading(false);
                 onPortfolioAdded(res.data.portfolio);
                 onClose();
@@ -95,6 +104,20 @@ export default function AddPortfolioModal({ isOpen, onClose, onPortfolioAdded })
                             rows={3}
                             className="w-full bg-slate-950/50 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all resize-none"
                         />
+                    </div>
+
+                    <div className="flex items-center mt-2 bg-indigo-500/5 p-3 rounded-xl border border-indigo-500/20">
+                        <input
+                            type="checkbox"
+                            id="ai-toggle"
+                            checked={isAI}
+                            onChange={(e) => setIsAI(e.target.checked)}
+                            className="w-5 h-5 rounded border-slate-600 text-indigo-500 focus:ring-indigo-500/50 bg-slate-900 cursor-pointer"
+                        />
+                        <label htmlFor="ai-toggle" className="ml-3 text-sm font-medium text-slate-200 cursor-pointer flex flex-col">
+                            <span>Enable AI Features ✨</span>
+                            <span className="text-xs text-slate-400 font-normal">This portfolio will be listed under your AI Portfolios section.</span>
+                        </label>
                     </div>
 
                     <button

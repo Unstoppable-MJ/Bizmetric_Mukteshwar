@@ -206,6 +206,20 @@ export default function StockPredictionChart({ symbol, allStocks = [], onSymbolC
         return null;
     };
 
+    if (allStocks && allStocks.length === 0) {
+        return (
+            <div className="bg-slate-950/40 backdrop-blur-md rounded-2xl border border-slate-800/80 p-6 shadow-2xl flex items-center justify-center min-h-[550px]">
+                <div className="text-center p-8 max-w-md">
+                    <div className="w-20 h-20 bg-slate-900/80 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-700 shadow-xl shadow-slate-900">
+                        <span className="text-4xl">📉</span>
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-3">No Stocks Found</h3>
+                    <p className="text-slate-400 font-medium">No stocks available in portfolio. Please add a stock to run the AI forecast.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="bg-slate-950/40 backdrop-blur-md rounded-2xl border border-slate-800/80 p-6 shadow-2xl relative overflow-visible flex flex-col min-h-[550px]">
             {/* Background Glow */}
@@ -218,15 +232,32 @@ export default function StockPredictionChart({ symbol, allStocks = [], onSymbolC
                     <h3 className="text-xl font-bold text-white flex items-center gap-3">
                         <span className="bg-indigo-500/20 text-indigo-400 p-2 rounded-lg 
                         shadow-[0_0_15px_rgba(99,102,241,0.2)]">📈</span>
-                        AI Trend Forecast
+                        AI Trend Forecast {currentStock.name && `for ${currentStock.name}`}
                     </h3>
                     <p className="text-sm text-slate-400 mt-2 font-medium">
                         Advanced algorithmic projections {" "}
-                        <span className="text-indigo-400 font-semibold">{currentStock.name && `for ${currentStock.symbol}`}</span>
+                        <span className="text-indigo-400 font-semibold">{currentStock.symbol && `(${currentStock.symbol})`}</span>
                     </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 bg-slate-900/40 p-2 border border-slate-800/80 rounded-2xl shadow-inner">
+                    {/* Level 0: Stock Selector */}
+                    <GlassDropdown
+                        label="Select Stock"
+                        value={`${currentStock.name || currentStock.symbol} (${currentStock.symbol})`}
+                        options={uniqueStocks.map(s => `${s.name} (${s.rawSymbol})`)}
+                        onChange={(selectedString) => {
+                            // Extract rawSymbol from the formatted string e.g. "Reliance (RELIANCE.NS)"
+                            const match = selectedString.match(/\(([^)]+)\)$/);
+                            if (match && match[1] && onSymbolChange) {
+                                onSymbolChange(match[1]);
+                            }
+                        }}
+                        icon="🏦"
+                    />
+
+                    <div className="h-4 w-px bg-slate-700 mx-1 hidden lg:block"></div>
+
                     {/* Level 1: Category */}
                     <GlassDropdown
                         label="Category"
