@@ -13,6 +13,9 @@ from .views import (
     Nifty50PCAAPIView,
     PreciousMetalsAPIView,
     CryptoForecastingAPIView,
+    StockSearchAPIView,
+    ModelBacktestAPIView,
+    DeletePortfolioStockAPIView,
 )
 
 urlpatterns = [
@@ -22,6 +25,7 @@ urlpatterns = [
     path('portfolio-stocks/', StockListAPIView.as_view()),
     path('portfolio-stocks/<int:pk>/', PortfolioStockDetailAPIView.as_view()),
     path('stock-preview/', StockPreviewAPIView.as_view()),
+    path('stock-search/', StockSearchAPIView.as_view()),
     path('portfolio-history/', MultiStockHistoryAPIView.as_view()),
     path('stock-prediction/', StockPredictionAPIView.as_view()),
     path('stock-clustering/', StockClusteringAPIView.as_view()),
@@ -29,4 +33,6 @@ urlpatterns = [
     path('nifty50-pca/', Nifty50PCAAPIView.as_view()),
     path('precious-metals/', PreciousMetalsAPIView.as_view()),
     path('crypto-ai/', CryptoForecastingAPIView.as_view()),
+    path('backtest/', ModelBacktestAPIView.as_view()),
+    path('portfolio/delete-stock/', DeletePortfolioStockAPIView.as_view()),
 ]

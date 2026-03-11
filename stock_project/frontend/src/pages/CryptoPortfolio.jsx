@@ -10,6 +10,8 @@ export default function CryptoPortfolio() {
     const [selectedAsset, setSelectedAsset] = useState("BTC-USD");
     const [selectedAlgorithm, setSelectedAlgorithm] = useState("ARIMA");
     const [predictionTable, setPredictionTable] = useState([]);
+    const [backtestingResults, setBacktestingResults] = useState([]);
+    const [loadingBacktest, setLoadingBacktest] = useState(true);
 
     const assetOptions = [
         { label: "BTC-USD (Bitcoin)", value: "BTC-USD" },
@@ -27,15 +29,12 @@ export default function CryptoPortfolio() {
 
     const loadData = (selectedHorizon, asset, algorithm) => {
         setLoading(true);
-        // Clear previous results as requested
         setPredictionTable([]);
 
         API.get(`crypto-ai/?horizon=${selectedHorizon}&symbol=${asset}&algorithm=${algorithm}`)
             .then(res => {
                 setData(res.data);
 
-                // Identify only the forecast rows (where predicted_price exists and historical_price is null)
-                // Filter out the first forecast point used for connection (which has both null sometimes or specific structure)
                 const forecastRows = res.data.data
                     .filter(d => d.predicted_price !== null && d.historical_price === null)
                     .map(row => ({
@@ -55,9 +54,29 @@ export default function CryptoPortfolio() {
             });
     };
 
+    const fetchBacktestData = (asset) => {
+        setLoadingBacktest(true);
+        setBacktestingResults([]);
+
+        API.get(`backtest/?ticker=${asset}`)
+            .then(res => {
+                setBacktestingResults(res.data.results || []);
+                setLoadingBacktest(false);
+            })
+            .catch(err => {
+                console.error("Backtest Fetch Error:", err);
+                setLoadingBacktest(false);
+            });
+    };
+
     useEffect(() => {
         loadData(horizon, selectedAsset, selectedAlgorithm);
     }, [horizon, selectedAsset, selectedAlgorithm]);
+
+    useEffect(() => {
+        // Fetch backtesting separately when asset changes
+        fetchBacktestData(selectedAsset);
+    }, [selectedAsset]);
 
     if (error) {
         return (
@@ -238,7 +257,75 @@ export default function CryptoPortfolio() {
                 </div>
             </div>
 
-            {/* Prediction Results Table */}
+            {/* Model Backtesting Results */}
+            <div className="bg-slate-900/40 backdrop-blur-md rounded-[2.5rem] border border-slate-800 p-8 shadow-2xl relative">
+                <div className="flex justify-between items-center mb-6">
+                    <div>
+                        <h3 className="text-2xl font-black text-white mb-1">Model Backtesting Results</h3>
+                        <p className="text-slate-500 text-sm">Statistical evaluation of {selectedAsset} modeling performance over historical 2-year window.</p>
+                    </div>
+                </div>
+
+                <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/50">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-slate-900/50">
+                                <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800">Model</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800">MAE</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800">RMSE</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800">MAPE</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800">Accuracy (%)</th>
+                                <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800 text-right">Data Range</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/50">
+                            {loadingBacktest ? (
+                                <tr>
+                                    <td colSpan="6" className="px-6 py-12 text-center text-slate-500 italic text-sm">
+                                        Calculating integrity metrics...
+                                    </td>
+                                </tr>
+                            ) : backtestingResults.length > 0 ? (
+                                backtestingResults.map((row, idx) => (
+                                    <tr key={idx} className={`hover:bg-slate-800/20 transition-colors ${row.model === selectedAlgorithm || (row.model.includes("LSTM") && selectedAlgorithm === "RNN") ? 'bg-indigo-500/5' : ''}`}>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${row.model === selectedAlgorithm || (row.model.includes("LSTM") && selectedAlgorithm === "RNN")
+                                                ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
+                                                : 'bg-slate-800/50 text-slate-400 border-slate-700'
+                                                }`}>
+                                                {row.model}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-slate-300 font-mono">{row.mae.toFixed(2)}</td>
+                                        <td className="px-6 py-4 text-sm text-slate-300 font-mono">{row.rmse.toFixed(2)}</td>
+                                        <td className="px-6 py-4 text-sm text-emerald-400 font-bold">{row.mape}%</td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]"
+                                                        style={{ width: `${row.accuracy}%` }}
+                                                    />
+                                                </div>
+                                                <span className="text-xs font-black text-white">{row.accuracy}%</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-[10px] text-slate-500 text-right font-bold uppercase tracking-widest">{row.data_range}</td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="6" className="px-6 py-12 text-center text-slate-500 italic text-sm">
+                                        No metrics available for {selectedAsset}.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Forecast Metrics Explorer */}
             <div className="bg-slate-900/40 backdrop-blur-md rounded-[2.5rem] border border-slate-800 p-8 shadow-2xl relative">
                 <div className="flex justify-between items-center mb-6">
                     <div>

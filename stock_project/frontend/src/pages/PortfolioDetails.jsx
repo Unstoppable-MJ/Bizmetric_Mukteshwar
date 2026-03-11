@@ -25,6 +25,8 @@ export default function PortfolioDetails({ activePortfolio }) {
     const [stocks, setStocks] = useState([]);
     const [selectedSymbol, setSelectedSymbol] = useState(null);
     const [expandedCardId, setExpandedCardId] = useState(null);
+    const [stockToDelete, setStockToDelete] = useState(null);
+    const [toastMessage, setToastMessage] = useState(null);
 
     const [preview, setPreview] = useState(null);
     const [loadingPreview, setLoadingPreview] = useState(false);
@@ -50,6 +52,35 @@ export default function PortfolioDetails({ activePortfolio }) {
     const toggleExpand = (id, symbol) => {
         setExpandedCardId(prev => (prev === id ? null : id));
         setSelectedSymbol(symbol.replace(".NS", ""));
+    };
+
+    const handleRemoveRequest = (stockId, symbol) => {
+        setStockToDelete({ id: stockId, symbol });
+    };
+
+    const confirmDelete = () => {
+        if (!stockToDelete) return;
+
+        API.delete(`portfolio/delete-stock/`, {
+            data: { portfolio_id: activePortfolio, stock_id: stockToDelete.id }
+        })
+            .then(res => {
+                setStocks(prev => prev.filter(s => s.id !== stockToDelete.id));
+                setStockToDelete(null);
+                setToastMessage(`Stock ${stockToDelete.symbol} removed successfully`);
+                setTimeout(() => setToastMessage(null), 3000);
+
+                if (selectedSymbol === stockToDelete.symbol) {
+                    setSelectedSymbol(null);
+                    setPreview(null);
+                }
+            })
+            .catch(err => {
+                console.error("Delete error:", err);
+                setStockToDelete(null);
+                setToastMessage("Failed to remove stock from portfolio.");
+                setTimeout(() => setToastMessage(null), 3000);
+            });
     };
 
     // 2. Group stocks by sector for "Your Holdings"
@@ -320,6 +351,7 @@ export default function PortfolioDetails({ activePortfolio }) {
                                                     index={index}
                                                     isExpanded={expandedCardId === stock.id}
                                                     onToggle={() => toggleExpand(stock.id, stock.symbol)}
+                                                    onRemoveStock={handleRemoveRequest}
                                                 />
                                             ))}
                                         </div>
@@ -334,6 +366,68 @@ export default function PortfolioDetails({ activePortfolio }) {
                     </div>
                 </>
             )}
+
+            {/* CONFIRMATION MODAL */}
+            <AnimatePresence>
+                {stockToDelete && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                            className="bg-[#0b1220] border border-slate-700/50 rounded-2xl p-6 max-w-sm w-full shadow-[0_10px_40px_rgba(0,0,0,0.8)]"
+                        >
+                            <div className="w-12 h-12 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center mb-4 text-xl border border-rose-500/30">
+                                🗑️
+                            </div>
+                            <h3 className="text-xl font-bold text-white mb-2 tracking-tight">Remove Stock</h3>
+                            <p className="text-slate-400 mb-6 text-sm">
+                                Are you sure you want to remove <span className="text-white font-bold">{stockToDelete.symbol}</span> from this portfolio? This action will permanently sever the link.
+                            </p>
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={() => setStockToDelete(null)}
+                                    className="px-4 py-2 rounded-xl text-slate-300 hover:bg-slate-800 transition-colors font-medium border border-transparent hover:border-slate-700/50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmDelete}
+                                    className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white font-semibold transition-all shadow-[0_4px_14px_rgba(225,29,72,0.4)]"
+                                >
+                                    Delete Stock
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* TOAST NOTIFICATION */}
+            <AnimatePresence>
+                {toastMessage && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 50, scale: 0.9 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 20, scale: 0.9 }}
+                        className={`fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-3 rounded-2xl border shadow-2xl z-50 font-medium flex items-center gap-3 backdrop-blur-md ${toastMessage.includes("Failed") ? "bg-rose-950/80 border-rose-500/50 text-rose-300" : "bg-emerald-950/80 border-emerald-500/50 text-emerald-300"
+                            }`}
+                    >
+                        {toastMessage.includes("Failed") ? (
+                            <span className="text-xl">❌</span>
+                        ) : (
+                            <span className="text-xl">✅</span>
+                        )}
+                        {toastMessage}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
         </div>
     );
 }

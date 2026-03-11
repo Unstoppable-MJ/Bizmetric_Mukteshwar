@@ -61,7 +61,6 @@ export default function StockDetailPanel({ symbol, allStocks = [], portfolioId, 
     const metrics = [
         { label: "Symbol", key: "symbol", color: "text-white" },
         { label: "Company Name", key: "company_name", color: "text-emerald-400" },
-        { label: "Sector", key: "sector", color: "text-blue-400" },
         { label: "Current Price", key: "current_price", format: (v) => `₹${v?.toLocaleString("en-IN")}`, color: "text-white font-bold" },
         { label: "Max Price (52W)", key: "max_price", format: (v) => `₹${v?.toLocaleString("en-IN")}`, color: "text-slate-300" },
         { label: "P/E Ratio", key: "pe_ratio", color: "text-white" },

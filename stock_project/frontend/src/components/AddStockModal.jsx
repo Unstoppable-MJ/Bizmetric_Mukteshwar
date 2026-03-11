@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import API from "../services/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
@@ -21,11 +21,49 @@ export default function AddStockModal({ onClose, onSuccess, activePortfolio }) {
   const [symbol, setSymbol] = useState("");
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestionRef = useRef(null);
+
+  // 🔍 Click Outside Suggestions
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (suggestionRef.current && !suggestionRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // 🔍 Suggestions Fetch
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      if (symbol.length > 0) {
+        try {
+          const res = await API.get(`stock-search/?q=${symbol}`);
+          setSuggestions(res.data);
+          setShowSuggestions(true);
+        } catch (err) {
+          setSuggestions([]);
+        }
+      } else {
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+    };
+
+    const delayDebounceFn = setTimeout(() => {
+      fetchSuggestions();
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [symbol]);
 
   // 🔍 Live Preview Fetch
   useEffect(() => {
     const fetchPreview = async () => {
-      if (symbol.length > 2) {
+      if (symbol.length > 2 && !showSuggestions) {
         setLoading(true);
 
         try {
@@ -113,15 +151,60 @@ export default function AddStockModal({ onClose, onSuccess, activePortfolio }) {
             <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-6">
 
               {/* SYMBOL INPUT */}
-              <div>
+              <div className="relative" ref={suggestionRef}>
                 <label className="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wide">Stock Symbol</label>
                 <input
                   type="text"
                   placeholder="e.g. RELIANCE"
                   value={symbol}
-                  onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                  onChange={(e) => {
+                    setSymbol(e.target.value.toUpperCase());
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => {
+                    if (suggestions.length > 0) setShowSuggestions(true);
+                  }}
                   className="w-full p-4 rounded-xl bg-slate-950/50 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all font-medium placeholder-slate-600 uppercase"
                 />
+
+                {/* Autocomplete Suggestions Dropdown */}
+                <AnimatePresence>
+                  {showSuggestions && suggestions.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute z-50 left-0 right-0 mt-2 bg-slate-900/95 backdrop-blur-xl border border-slate-700 rounded-2xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto custom-scrollbar"
+                    >
+                      {suggestions.map((s, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setSymbol(s.symbol);
+                            setShowSuggestions(false);
+                            setSuggestions([]);
+                          }}
+                          className="w-full px-5 py-4 text-left hover:bg-slate-800/50 transition-all flex justify-between items-center group border-b border-slate-800 last:border-0"
+                        >
+                          <div>
+                            <span className="block text-sm font-bold text-white group-hover:text-emerald-400 transition-colors uppercase">
+                              {s.symbol}
+                            </span>
+                            <span className="block text-[10px] text-slate-500 font-medium">
+                              {s.name}
+                            </span>
+                          </div>
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                          </div>
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* 🔍 LOADING */}
