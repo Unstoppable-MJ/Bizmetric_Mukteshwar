@@ -1,0 +1,14 @@
+artifact_uri: file:D:/Project_Intership/ML_Dashboard/btc_forecasting/mlruns/337948536476194663/b4e2bd10715d404db2f6a4c4504b7d1d/artifacts
+end_time: 1772786012743
+entry_point_name: ''
+experiment_id: '337948536476194663'
+lifecycle_stage: active
+run_id: b4e2bd10715d404db2f6a4c4504b7d1d
+run_name: ARIMA
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1772786001552
+status: 3
+tags: []
+user_id: Ganeshjoshi
