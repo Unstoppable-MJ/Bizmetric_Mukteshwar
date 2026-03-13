@@ -3,8 +3,13 @@ import yaml
 import os
 
 def load_config():
-    with open("config.yaml", "r") as f:
-        return yaml.safe_load(f)
+    """Load configuration from config.yaml."""
+    paths = ["config.yaml", "../config.yaml", "../../config.yaml"]
+    for p in paths:
+        if os.path.exists(p):
+            with open(p, "r") as f:
+                return yaml.safe_load(f)
+    raise FileNotFoundError("config.yaml not found")
 
 class ModelLoader:
     """
@@ -23,7 +28,7 @@ class ModelLoader:
         # Try Production first
         try:
             model_uri = f"models:/{model_name}/Production"
-            model = mlflow.sklearn.load_model(model_uri)
+            model = mlflow.pyfunc.load_model(model_uri)
             print(f"Loaded {model_name} from Production stage.")
             return model
         except Exception:
@@ -32,7 +37,7 @@ class ModelLoader:
         # Try Staging
         try:
             model_uri = f"models:/{model_name}/Staging"
-            model = mlflow.sklearn.load_model(model_uri)
+            model = mlflow.pyfunc.load_model(model_uri)
             print(f"Loaded {model_name} from Staging stage.")
             return model
         except Exception as e:

@@ -61,22 +61,34 @@
             <table class="w-full text-left">
                 <thead>
                     <tr class="text-slate-500 text-xs uppercase tracking-wider border-b border-slate-700">
-                        <th class="pb-4 px-4">Logged (IST)</th>
+                        <th class="pb-4 px-4">
+                            <span
+                                title="Time when the prediction was generated (Run Inference action executed)">Inference
+                                Time (IST) ⓘ</span>
+                        </th>
                         <th class="pb-4 px-4">Predicted Hour</th>
                         <th class="pb-4 px-4">ARIMA (Price)</th>
                         <th class="pb-4 px-4">LR (Price)</th>
+                        <th class="pb-4 px-4">LSTM (Price)</th>
+                        <th class="pb-4 px-4">RNN (Price)</th>
                         <th class="pb-4 px-4">Status</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-700/50" id="historyTableBody">
                     {% for item in history %}
                     <tr class="hover:bg-slate-800/10 transition-colors">
-                        <td class="py-4 px-4 text-slate-400 text-xs">{{ item.timestamp|slice:":19" }}</td>
-                        <td class="py-4 px-4 font-bold text-white text-xs">{{ item.forecast_timestamp|slice:":16" }}
+                        <td class="py-4 px-4 text-slate-400 text-xs">{{ item.timestamp }}</td>
+                        <td class="py-4 px-4 font-bold text-white text-xs">{{ item.forecast_timestamp }}
                         </td>
                         <td class="py-4 px-4 font-bold text-purple-400 font-mono">${{ item.arima_price|floatformat:2 }}
                         </td>
                         <td class="py-4 px-4 font-bold text-blue-400 font-mono">${{ item.lr_price|floatformat:2 }}</td>
+                        <td class="py-4 px-4 font-bold text-green-400 font-mono">
+                            {% if item.lstm_price %}${{ item.lstm_price|floatformat:2 }}{% else %}--{% endif %}
+                        </td>
+                        <td class="py-4 px-4 font-bold text-yellow-400 font-mono">
+                            {% if item.rnn_price %}${{ item.rnn_price|floatformat:2 }}{% else %}--{% endif %}
+                        </td>
                         <td class="py-4 px-4">
                             <span class="flex items-center space-x-1.5 text-green-500 text-xs font-bold uppercase">
                                 <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
@@ -132,7 +144,7 @@
 
         } catch (err) {
             console.error(err);
-            alert('API connection failed or Inference error. Ensure FastAPI is running on port 8000.');
+            alert('API connection failed or Inference error. Ensure FastAPI is running on port 8001.');
         } finally {
             btn.disabled = false;
             btn.innerHTML = originalContent;

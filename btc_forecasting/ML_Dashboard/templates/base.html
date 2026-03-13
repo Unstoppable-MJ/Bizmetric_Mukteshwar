@@ -1,4 +1,4 @@
-{% load static %}
+﻿{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 
@@ -99,7 +99,14 @@
         <!-- Navbar -->
         <header class="h-20 flex items-center justify-between px-8">
             <h2 class="text-xl font-semibold">{% block header_title %}Dashboard{% endblock %}</h2>
-            <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-6">
+                <!-- Branding Label -->
+                <div
+                    class="hidden md:flex items-center px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                    <span class="text-[10px] text-slate-500 font-medium mr-2">Powered by</span>
+                    <span class="text-xs text-blue-400 font-bold italic tracking-tight">@unstoppable-mukteshwar</span>
+                </div>
+
                 <div
                     class="flex items-center space-x-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-500 text-xs font-bold">
                     <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>

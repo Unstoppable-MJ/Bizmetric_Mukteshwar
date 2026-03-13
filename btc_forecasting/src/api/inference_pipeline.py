@@ -20,7 +20,7 @@ def load_config():
                 return yaml.safe_load(f)
     raise FileNotFoundError("config.yaml not found")
 
-def run_full_inference(lr_predictor=None, arima_predictor=None, logger=None):
+def run_full_inference(lr_predictor=None, arima_predictor=None, lstm_predictor=None, rnn_predictor=None, logger=None):
     print("--- Starting Automated Inference Pipeline ---")
     config = load_config()
     
@@ -88,6 +88,12 @@ def run_full_inference(lr_predictor=None, arima_predictor=None, logger=None):
     if arima_predictor is None:
         print("Loading ARIMA Predictor...")
         arima_predictor = Predictor(model_name="arima_btc_model")
+    if lstm_predictor is None:
+        print("Loading LSTM Predictor...")
+        lstm_predictor = Predictor(model_name="lstm_btc_model")
+    if rnn_predictor is None:
+        print("Loading RNN Predictor...")
+        rnn_predictor = Predictor(model_name="rnn_btc_model")
     if logger is None:
         print("Initializing Logger...")
         logger = PredictionLogger()
@@ -105,8 +111,25 @@ def run_full_inference(lr_predictor=None, arima_predictor=None, logger=None):
         print("Running ARIMA predict...")
         arima_price_pred = arima_predictor.predict(features_dict) if arima_predictor.model else None
         
+        print("Running LSTM predict...")
+        # LSTM/RNN need historical data for sequences
+        lstm_price_pred = lstm_predictor.predict(df) if (lstm_predictor and lstm_predictor.model) else None
+        
+        print("Running RNN predict...")
+        rnn_price_pred = rnn_predictor.predict(df) if (rnn_predictor and rnn_predictor.model) else None
+        
+        print(f"DEBUG: Raw LR ret pred: {lr_ret_pred}")
+        print(f"DEBUG: Raw ARIMA price pred: {arima_price_pred}")
+        print(f"DEBUG: Raw LSTM price pred: {lstm_price_pred}")
+        print(f"DEBUG: Raw RNN price pred: {rnn_price_pred}")
+
         print("Applying transformations...")
         lr_price_pred = current_price * np.exp(lr_ret_pred) if (lr_ret_pred is not None) else None
+        
+        # Verify if any prediction is identical to current_price (potential failure)
+        for name, val in [("LR", lr_price_pred), ("ARIMA", arima_price_pred), ("LSTM", lstm_price_pred), ("RNN", rnn_price_pred)]:
+            if val is not None and abs(val - current_price) < 0.0001:
+                print(f"WARNING: {name} prediction is NEARLY IDENTICAL to current price!")
         
         # 5. Persistent Logging
         print("Step 5: Logging results...")
@@ -114,6 +137,8 @@ def run_full_inference(lr_predictor=None, arima_predictor=None, logger=None):
             features_dict, 
             lr_price=lr_price_pred, 
             arima_price=arima_price_pred,
+            lstm_price=lstm_price_pred,
+            rnn_price=rnn_price_pred,
             actual_price=current_price,
             forecast_timestamp=forecast_timestamp
         )
@@ -128,7 +153,9 @@ def run_full_inference(lr_predictor=None, arima_predictor=None, logger=None):
         "status": "success",
         "actual": current_price,
         "lr_prediction": lr_price_pred,
-        "arima_prediction": arima_price_pred
+        "arima_prediction": arima_price_pred,
+        "lstm_prediction": lstm_price_pred,
+        "rnn_prediction": rnn_price_pred
     }
 
 if __name__ == "__main__":

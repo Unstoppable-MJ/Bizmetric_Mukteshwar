@@ -6,9 +6,15 @@ class PredictionLogger:
     """
     Logs features and predictions to a Parquet file.
     """
-    def __init__(self, log_path="logs/predictions.parquet"):
-        self.log_path = log_path
+    def __init__(self, log_path=None):
+        if log_path is None:
+            # Get project root (2 levels up from src/monitoring)
+            root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+            self.log_path = os.path.join(root_dir, "logs/predictions.parquet")
+        else:
+            self.log_path = log_path
         os.makedirs(os.path.dirname(self.log_path), exist_ok=True)
+        print(f"PredictionLogger initialized with log_path: {self.log_path}")
 
     def log_prediction(self, features: dict, forecast_timestamp=None, **predictions):
         """
