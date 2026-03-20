@@ -8,6 +8,9 @@ import PreciousMetalsPortfolio from "./pages/PreciousMetalsPortfolio";
 import CryptoPortfolio from "./pages/CryptoPortfolio";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
+import SentimentPortfolioSelect from "./pages/SentimentPortfolioSelect";
+import SentimentStockSelect from "./pages/SentimentStockSelect";
+import SentimentResult from "./pages/SentimentResult";
 import MainLayout from "./layouts/MainLayout";
 import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
@@ -146,6 +149,36 @@ function App() {
                 fetchPortfolios={fetchPortfolios}
               >
                 <CryptoPortfolio />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/sentiment"
+          element={
+            <ProtectedRoute>
+              <MainLayout portfolios={portfolios} activePortfolio={activePortfolio} setActivePortfolio={setActivePortfolio} refreshData={refreshData} fetchPortfolios={fetchPortfolios}>
+                <SentimentPortfolioSelect />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/sentiment/:portfolioId"
+          element={
+            <ProtectedRoute>
+              <MainLayout portfolios={portfolios} activePortfolio={activePortfolio} setActivePortfolio={setActivePortfolio} refreshData={refreshData} fetchPortfolios={fetchPortfolios}>
+                <SentimentStockSelect />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/sentiment/:portfolioId/:stockSymbol"
+          element={
+            <ProtectedRoute>
+              <MainLayout portfolios={portfolios} activePortfolio={activePortfolio} setActivePortfolio={setActivePortfolio} refreshData={refreshData} fetchPortfolios={fetchPortfolios}>
+                <SentimentResult />
               </MainLayout>
             </ProtectedRoute>
           }

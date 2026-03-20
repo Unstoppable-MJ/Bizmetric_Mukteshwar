@@ -15,6 +15,10 @@ from sklearn.linear_model import LinearRegression
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from datetime import datetime, timedelta
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+import traceback
+import google.generativeai as genai
+from django.conf import settings
 
 def calculate_stock_metrics(current_price, max_price, pe_ratio):
     current_price = float(current_price) if current_price else 0.0
@@ -109,7 +113,15 @@ class PortfolioListAPIView(APIView):
 
         from django.db.models import Q
         portfolios = Portfolio.objects.filter(Q(user_id=user_id) | Q(portfolio_type='ai_builtin'))
-        data = [{"id": p.id, "name": p.name, "description": p.description, "type": p.portfolio_type} for p in portfolios]
+        data = []
+        for p in portfolios:
+            data.append({
+                "id": p.id, 
+                "name": p.name, 
+                "description": p.description, 
+                "type": p.portfolio_type,
+                "stock_count": p.portfoliostock_set.count()
+            })
         return Response(data)
 
     def post(self, request):
@@ -252,8 +264,9 @@ class AddStockAPIView(APIView):
 # 📊 STOCK LIST API
 # -----------------------------
 class StockListAPIView(APIView):
-    def get(self, request):
-        portfolio_id = request.GET.get("portfolio_id")
+    def get(self, request, portfolio_id=None):
+        if not portfolio_id:
+            portfolio_id = request.GET.get("portfolio_id")
         
         if portfolio_id and portfolio_id != "all":
             stocks = PortfolioStock.objects.filter(portfolio_id=portfolio_id)
@@ -1951,3 +1964,189 @@ class ModelBacktestAPIView(APIView):
         except Exception as e:
             traceback.print_exc()
             return Response({"error": str(e)}, status=500)
+
+# -----------------------------
+# 🎭 SENTIMENT ANALYSIS API
+# -----------------------------
+class SentimentAPIView(APIView):
+    def post(self, request):
+        symbol = request.data.get("symbol")
+        if not symbol:
+            return Response({"error": "Symbol is required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Prepare yahoo symbol
+        yahoo_symbol = symbol.upper() if symbol.upper().endswith(".NS") else symbol.upper() + ".NS"
+        
+        try:
+            # Prepare queries
+            all_news = []
+            
+            # 1. Ticker News
+            ticker = yf.Ticker(yahoo_symbol)
+            all_news.extend(getattr(ticker, 'news', []))
+            
+            # 2. Search by Symbol
+            try:
+                search_sym = yf.Search(yahoo_symbol)
+                all_news.extend(search_sym.news)
+            except: pass
+            
+            # 3. Search by Company Name
+            try:
+                stock_obj = Stock.objects.filter(symbol=symbol).first()
+                if stock_obj:
+                    search_name = yf.Search(f"{stock_obj.name} stock news India")
+                    all_news.extend(search_name.news)
+            except: pass
+
+            # De-duplicate and Validate
+            seen_titles = set()
+            valid_news = []
+            for n in all_news:
+                title = n.get('title') or n.get('text') or n.get('headline')
+                if title and title not in seen_titles:
+                    seen_titles.add(title)
+                    valid_news.append(n)
+
+            analyzer = SentimentIntensityAnalyzer()
+            
+            # --- Sentiment Calculation ---
+            all_sentiments = []
+            print(f"\n--- Sentiment Debug: {symbol} ---")
+            
+            final_headlines = []
+            for item in valid_news[:10]: # Changed from `news` to `valid_news`
+                title = item.get('title') or item.get('text') or item.get('headline')
+                if title:
+                    score = analyzer.polarity_scores(title)['compound']
+                    all_sentiments.append(score)
+                    final_headlines.append(title)
+                    print(f"[{round(score, 2)}] {title}")
+
+            if not all_sentiments:
+                 return Response({
+                    "stock": symbol,
+                    "sentiment": "No Data",
+                    "confidence": 0,
+                    "score": 0,
+                    "headlines": [],
+                    "message": "Insufficient news data after processing."
+                })
+
+            avg_compound = sum(all_sentiments) / len(all_sentiments)
+            
+            # Define sentiment label
+            if avg_compound >= 0.05:
+                label = "Positive"
+            elif avg_compound <= -0.05:
+                label = "Negative"
+            else:
+                label = "Neutral"
+            
+            # Calculate a confidence score (0-100)
+            confidence = min(99.9, 50 + (abs(avg_compound) * 50))
+
+            # Debug Logging
+            print(f"Average Compound Score: {avg_compound}")
+            print(f"Final Sentiment: {label} ({confidence}%)\n")
+
+            return Response({
+                "stock": symbol,
+                "sentiment": label,
+                "confidence": round(confidence, 1),
+                "score": round(avg_compound, 4),
+                "headlines": final_headlines,
+                "news_count": len(all_sentiments),
+                "details": {
+                    "avg_compound": round(avg_compound, 4),
+                    "news_analyzed": len(all_sentiments)
+                }
+            })
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({"error": f"Sentiment analysis failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# -----------------------------
+# 🤖 AI REVIEW API
+# -----------------------------
+class AIReviewView(APIView):
+    def post(self, request):
+        stock_symbol = request.data.get("stock")
+        if not stock_symbol:
+            return Response({"error": "Stock symbol is required"}, status=400)
+
+        # 1. Get sentiment context (optional but recommended)
+        # We can reuse the sentiment logic or just let Gemini handle it with provided context
+        sentiment_label = request.data.get("sentiment", "Neutral")
+        confidence = request.data.get("confidence", "Unknown")
+
+        try:
+            # Configure Gemini
+            api_key = getattr(settings, "GEMINI_API_KEY", None)
+            if not api_key or api_key == "YOUR_API_KEY_HERE":
+                return Response({
+                    "stock": stock_symbol,
+                    "analysis": "AI Review is currently unavailable. Please configure the GEMINI_API_KEY in backend settings.",
+                    "risk": "N/A",
+                    "recommendation": "N/A"
+                }, status=200)
+
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel('gemini-flash-latest')
+
+            # Build headlines string for prompt
+            headlines_list = request.data.get("headlines", [])
+            headlines_str = "\n".join([f"{i+1}. {h}" for i, h in enumerate(headlines_list[:5])])
+            avg_score = request.data.get("score", 0)
+
+            prompt = f"""
+            Analyze the stock {stock_symbol} based on the following real-time news sentiment data:
+
+            Headlines:
+            {headlines_str if headlines_str else "No recent headlines found."}
+
+            Average Sentiment Score: {avg_score}
+            Overall Label: {sentiment_label}
+
+            Provide a concise and realistic investment insight.
+            
+            Return the response in a structured JSON format exactly like this:
+            {{
+                "analysis": "A professional explanation of market sentiment and trends...",
+                "risk": "Low/Medium/High",
+                "recommendation": "Buy/Hold/Avoid",
+                "reasoning": "Clear reasoning based on the news and sentiment data"
+            }}
+            
+            Keep the response concise and human-like.
+            """
+
+            response = model.generate_content(prompt)
+            
+            # Extract JSON from response text (Gemini sometimes wraps in backticks)
+            import json
+            import re
+            
+            text = response.text
+            json_match = re.search(r'\{.*\}', text, re.DOTALL)
+            if json_match:
+                data = json.loads(json_match.group())
+            else:
+                # Fallback if parsing fails
+                data = {
+                    "stock": stock_symbol,
+                    "analysis": text,
+                    "risk": "Medium",
+                    "recommendation": "Hold",
+                    "reasoning": "Automated analysis completed."
+                }
+
+            return Response(data)
+
+        except Exception as e:
+            print(f"Gemini API Error: {str(e)}")
+            return Response({
+                "error": f"AI Review failed: {str(e)}"
+            }, status=500)

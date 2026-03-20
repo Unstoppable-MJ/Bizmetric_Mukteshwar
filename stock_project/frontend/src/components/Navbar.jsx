@@ -195,6 +195,16 @@ export default function Navbar({ refreshData, portfolios, activePortfolio, setAc
             navigate={navigate}
             location={location}
           />
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => navigate('/sentiment')}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600/20 to-indigo-600/20 border border-blue-500/30 rounded-xl text-sm font-semibold text-blue-400 hover:text-blue-300 hover:border-blue-500/50 transition-all shadow-[0_0_20px_rgba(37,99,235,0.1)]"
+            title="Sentiment Analysis"
+          >
+            <span className="text-base">🎭</span>
+            <span className="hidden lg:inline">Sentiment Analysis</span>
+          </motion.button>
         </div>
 
         <div className="flex items-center gap-4 sm:gap-6">
@@ -206,6 +216,15 @@ export default function Navbar({ refreshData, portfolios, activePortfolio, setAc
               navigate={navigate}
               location={location}
             />
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => navigate('/sentiment')}
+              className="w-10 h-10 flex items-center justify-center bg-blue-500/10 border border-blue-500/20 rounded-xl text-lg shadow-lg"
+              title="Sentiment Analysis"
+            >
+              🎭
+            </motion.button>
           </div>
 
           <motion.button

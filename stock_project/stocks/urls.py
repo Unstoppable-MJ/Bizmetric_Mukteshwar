@@ -17,12 +17,17 @@ from .views import (
     StockSearchAPIView,
     ModelBacktestAPIView,
     DeletePortfolioStockAPIView,
+    SentimentAPIView,
+    AIReviewView,
 )
 
 urlpatterns = [
     path('login/', LoginAPIView.as_view()),
     path('register/', RegisterAPIView.as_view()),
     path('portfolios/', PortfolioListAPIView.as_view()),
+    path('portfolio/<int:portfolio_id>/stocks/', StockListAPIView.as_view()),
+    path('sentiment/', SentimentAPIView.as_view()),
+    path('ai-review/', AIReviewView.as_view()),
     path('add-stock/', AddStockAPIView.as_view()),
     path('portfolio-stocks/', StockListAPIView.as_view()),
     path('portfolio-stocks/<int:pk>/', PortfolioStockDetailAPIView.as_view()),

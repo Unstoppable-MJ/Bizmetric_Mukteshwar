@@ -124,3 +124,7 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 CORS_ALLOW_ALL_ORIGINS = True
+
+# AI Review Configuration (Gemini API)
+# IMPORTANT: Replace this with your actual Gemini API Key
+GEMINI_API_KEY ="AIzaSyDIuU1v-mdPvM3LPymEbtng4nwA1MVP5bY"
