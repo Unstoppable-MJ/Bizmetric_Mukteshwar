@@ -1,0 +1,23 @@
+artifact_path: file:D:/Project_Intership/ML_Dashboard/btc_forecasting/mlruns/337948536476194663/models/m-165eb4a78e2e46788a6fa8bcbce9063c/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.13.0
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.7.0
+    skops_trusted_types: null
+mlflow_version: 3.10.1
+model_id: m-165eb4a78e2e46788a6fa8bcbce9063c
+model_size_bytes: 5257554
+model_uuid: m-165eb4a78e2e46788a6fa8bcbce9063c
+prompts: null
+run_id: a6fea4abf1f04eacb5ede2880133752e
+utc_time_created: '2026-03-13 14:23:57.821752'

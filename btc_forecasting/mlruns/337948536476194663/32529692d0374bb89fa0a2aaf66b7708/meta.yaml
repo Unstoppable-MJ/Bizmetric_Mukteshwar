@@ -1,0 +1,14 @@
+artifact_uri: file:D:/Project_Intership/ML_Dashboard/btc_forecasting/mlruns/337948536476194663/32529692d0374bb89fa0a2aaf66b7708/artifacts
+end_time: 1773410775224
+entry_point_name: ''
+experiment_id: '337948536476194663'
+lifecycle_stage: active
+run_id: 32529692d0374bb89fa0a2aaf66b7708
+run_name: LinearRegression
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1773410770947
+status: 3
+tags: []
+user_id: Ganeshjoshi

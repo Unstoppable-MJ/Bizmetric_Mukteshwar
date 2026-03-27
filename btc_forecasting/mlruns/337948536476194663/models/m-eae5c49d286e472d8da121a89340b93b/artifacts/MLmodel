@@ -1,0 +1,20 @@
+artifact_path: file:D:/Project_Intership/ML_Dashboard/btc_forecasting/mlruns/337948536476194663/models/m-eae5c49d286e472d8da121a89340b93b/artifacts
+flavors:
+  python_function:
+    data: model.statsmodels
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.statsmodels
+    python_version: 3.13.0
+  statsmodels:
+    code: null
+    data: model.statsmodels
+    statsmodels_version: 0.14.6
+mlflow_version: 3.10.1
+model_id: m-eae5c49d286e472d8da121a89340b93b
+model_size_bytes: 5256078
+model_uuid: m-eae5c49d286e472d8da121a89340b93b
+prompts: null
+run_id: a1b59323825f4e7fa8173e38abd6a93e
+utc_time_created: '2026-03-13 17:56:09.718931'

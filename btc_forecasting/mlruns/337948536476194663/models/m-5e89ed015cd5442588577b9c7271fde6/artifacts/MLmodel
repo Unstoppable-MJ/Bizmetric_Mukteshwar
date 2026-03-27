@@ -1,0 +1,22 @@
+artifact_path: file:D:/Project_Intership/ML_Dashboard/btc_forecasting/mlruns/337948536476194663/models/m-5e89ed015cd5442588577b9c7271fde6/artifacts
+flavors:
+  python_function:
+    data: data
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.tensorflow
+    python_version: 3.13.0
+  tensorflow:
+    code: null
+    data: data
+    keras_version: 2.21.0
+    model_type: keras
+    save_format: tf
+mlflow_version: 3.10.1
+model_id: m-5e89ed015cd5442588577b9c7271fde6
+model_size_bytes: 1526472
+model_uuid: m-5e89ed015cd5442588577b9c7271fde6
+prompts: null
+run_id: 2cd7a920969e481cb8156178d7e06fd6
+utc_time_created: '2026-03-13 17:56:31.347775'

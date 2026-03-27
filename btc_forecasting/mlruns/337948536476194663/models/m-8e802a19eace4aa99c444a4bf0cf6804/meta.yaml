@@ -1,0 +1,10 @@
+artifact_location: file:D:/Project_Intership/ML_Dashboard/btc_forecasting/mlruns/337948536476194663/models/m-8e802a19eace4aa99c444a4bf0cf6804/artifacts
+creation_timestamp: 1773379427370
+experiment_id: '337948536476194663'
+last_updated_timestamp: 1773379452892
+model_id: m-8e802a19eace4aa99c444a4bf0cf6804
+model_type: null
+name: model
+source_run_id: 00e844aef0824edfbf530faf07d3bf36
+status: 2
+status_message: null

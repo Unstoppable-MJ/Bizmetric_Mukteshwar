@@ -1,0 +1,16 @@
+creation_timestamp: 1773380507968
+current_stage: Staging
+deployment_job_state: null
+description: null
+last_updated_timestamp: 1773380508093
+model_id: m-4eb3d303352b4858a55e4f4691c39fd0
+name: lstm_btc_model
+run_id: df015e8603674aa99da9ee295a1f7158
+run_link: null
+source: models:/m-4eb3d303352b4858a55e4f4691c39fd0
+status: READY
+status_message: null
+storage_location: file:D:/Project_Intership/ML_Dashboard/btc_forecasting/mlruns/337948536476194663/models/m-4eb3d303352b4858a55e4f4691c39fd0/artifacts
+user_id: null
+version: 4
+workspace: default
