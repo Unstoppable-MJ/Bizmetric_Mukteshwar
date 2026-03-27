@@ -39,7 +39,7 @@ jobs:
       run: |
         # Check if uvicorn can load the app without errors
         # We use timeout to avoid waiting too long if it starts successfully
-        timeout 5s uvicorn src.api.app:app --host 0.0.0.0 --port 8000 || [ $? -eq 124 ]
+        timeout 5s uvicorn src.api.app:app --host 0.0.0.0 --port 8001 || [ $? -eq 124 ]
 
   deploy:
     needs: lint-and-test
@@ -72,5 +72,5 @@ jobs:
           # Examples:
           # sudo systemctl restart gunicorn
           # pm2 restart btc-api
-          # nohup uvicorn src.api.app:app --host 0.0.0.0 --port 8000 &
+          # nohup uvicorn src.api.app:app --host 0.0.0.0 --port 8001 &
           echo "Deployment successful!"
