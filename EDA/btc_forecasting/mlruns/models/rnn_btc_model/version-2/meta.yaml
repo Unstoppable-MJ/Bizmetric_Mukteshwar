@@ -1,0 +1,16 @@
+creation_timestamp: 1773424621609
+current_stage: Staging
+deployment_job_state: null
+description: null
+last_updated_timestamp: 1773424621716
+model_id: m-8745e232c4144bbdb9a7f236318fb57e
+name: rnn_btc_model
+run_id: b2e1076babe8403d8143b0b3774ab391
+run_link: null
+source: models:/m-8745e232c4144bbdb9a7f236318fb57e
+status: READY
+status_message: null
+storage_location: file:D:/Project_Intership/ML_Dashboard/btc_forecasting/mlruns/337948536476194663/models/m-8745e232c4144bbdb9a7f236318fb57e/artifacts
+user_id: null
+version: 2
+workspace: default

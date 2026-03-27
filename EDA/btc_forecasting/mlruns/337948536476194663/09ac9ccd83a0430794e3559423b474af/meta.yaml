@@ -1,0 +1,14 @@
+artifact_uri: file:D:/Project_Intership/ML_Dashboard/btc_forecasting/mlruns/337948536476194663/09ac9ccd83a0430794e3559423b474af/artifacts
+end_time: 1773424187962
+entry_point_name: ''
+experiment_id: '337948536476194663'
+lifecycle_stage: active
+run_id: 09ac9ccd83a0430794e3559423b474af
+run_name: RNN
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1773424170199
+status: 3
+tags: []
+user_id: Ganeshjoshi

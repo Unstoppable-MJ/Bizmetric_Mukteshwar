@@ -1,0 +1,14 @@
+artifact_uri: file:D:/Project_Intership/ML_Dashboard/btc_forecasting/mlruns/337948536476194663/2cd7a920969e481cb8156178d7e06fd6/artifacts
+end_time: 1773424603612
+entry_point_name: ''
+experiment_id: '337948536476194663'
+lifecycle_stage: active
+run_id: 2cd7a920969e481cb8156178d7e06fd6
+run_name: LSTM
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1773424581119
+status: 3
+tags: []
+user_id: Ganeshjoshi

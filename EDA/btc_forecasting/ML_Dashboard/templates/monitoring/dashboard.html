@@ -1,0 +1,325 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}Overview - BTC Forecast{% endblock %}
+{% block header_title %}System Overview{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <!-- Top Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+        <div class="glass-card p-6 border-l-4 border-slate-400">
+            <p class="text-slate-400 text-sm font-medium">Actual BTC Price</p>
+            <div class="flex items-end justify-between mt-2">
+                <h3 class="text-2xl font-bold text-slate-200">
+                    {% if logs and logs.0.actual_price %}${{ logs.0.actual_price|floatformat:2 }}{% else %}N/A{% endif %}
+                </h3>
+            </div>
+        </div>
+
+        <div class="glass-card p-6 border-l-4 border-purple-500">
+            <p class="text-slate-400 text-sm font-medium">Latest ARIMA Prediction</p>
+            <div class="flex items-end justify-between mt-2">
+                <h3 class="text-2xl font-bold text-purple-400">
+                    {% if logs and logs.0.arima_price %}${{ logs.0.arima_price|floatformat:2 }}{% else %}N/A{% endif %}
+                </h3>
+            </div>
+        </div>
+
+        <div class="glass-card p-6 border-l-4 border-blue-500">
+            <p class="text-slate-400 text-sm font-medium">Latest LR Prediction</p>
+            <div class="flex items-end justify-between mt-2">
+                <h3 class="text-2xl font-bold text-blue-400">
+                    {% if logs and logs.0.lr_price %}${{ logs.0.lr_price|floatformat:2 }}{% else %}N/A{% endif %}
+                </h3>
+            </div>
+        </div>
+
+        <div class="glass-card p-6 border-l-4 border-green-500">
+            <p class="text-slate-400 text-sm font-medium">Latest LSTM Prediction</p>
+            <div class="flex items-end justify-between mt-2">
+                <h3 class="text-2xl font-bold text-green-400">
+                    {% if logs and logs.0.lstm_price %}${{ logs.0.lstm_price|floatformat:2 }}{% else %}N/A{% endif %}
+                </h3>
+            </div>
+        </div>
+
+        <div class="glass-card p-6 border-l-4 border-yellow-500">
+            <p class="text-slate-400 text-sm font-medium">Latest RNN Prediction</p>
+            <div class="flex items-end justify-between mt-2">
+                <h3 class="text-2xl font-bold text-yellow-400">
+                    {% if logs and logs.0.rnn_price %}${{ logs.0.rnn_price|floatformat:2 }}{% else %}N/A{% endif %}
+                </h3>
+            </div>
+        </div>
+
+        <div class="glass-card p-6 border-l-4 border-blue-400">
+            <p class="text-slate-400 text-sm font-medium">Top Performer (RMSE)</p>
+            <div class="flex items-center space-x-2 mt-2">
+                <div class="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
+                <h3 class="text-xl font-bold text-white">{{ top_performer }}</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prediction Trend Analysis -->
+    <div class="glass-card p-8">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-lg font-semibold">Inference Trend Analysis</h3>
+            <div class="px-3 py-1 bg-blue-500/10 text-blue-400 text-xs rounded-lg border border-blue-500/20">
+                Real-time</div>
+        </div>
+        <div class="h-96 relative">
+            {% if not logs %}
+            <div class="absolute inset-0 flex items-center justify-center bg-slate-900/50 rounded-lg z-10">
+                <p class="text-slate-500 italic">No prediction data available yet.</p>
+            </div>
+            {% endif %}
+            <canvas id="predictionChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Logs Row -->
+    <div class="glass-card p-8">
+        <h3 class="text-lg font-semibold mb-6">Historical Inference Logs</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="text-slate-500 text-xs uppercase tracking-wider border-b border-slate-700">
+                        <th class="pb-3 px-2">
+                            <span title="Time when the prediction was generated">Timestamp (IST) ⓘ</span>
+                        </th>
+                        <th class="pb-3 px-2">Actual Price</th>
+                        <th class="pb-3 px-2">ARIMA</th>
+                        <th class="pb-3 px-2">LR</th>
+                        <th class="pb-3 px-2">LSTM</th>
+                        <th class="pb-3 px-2">RNN</th>
+                    </tr>
+                </thead>
+                <tbody class="text-sm divide-y divide-slate-700/50">
+                    {% for log in logs %}
+                    <tr class="hover:bg-slate-800/30 transition-colors">
+                        <td class="py-3 px-2 text-slate-500 text-xs">{{ log.timestamp }}</td>
+                        <td class="py-3 px-2 font-mono text-xs">${{ log.actual_price|floatformat:2 }}</td>
+                        <td class="py-3 px-2 text-purple-400 font-bold text-xs">
+                            {% if log.arima_price %}${{ log.arima_price|floatformat:2 }}{% else %}--{% endif %}
+                        </td>
+                        <td class="py-3 px-2 text-blue-400 font-bold text-xs">
+                            {% if log.lr_price %}${{ log.lr_price|floatformat:2 }}{% else %}--{% endif %}
+                        </td>
+                        <td class="py-3 px-2 text-green-400 font-bold text-xs">
+                            {% if log.lstm_price %}${{ log.lstm_price|floatformat:2 }}{% else %}--{% endif %}
+                        </td>
+                        <td class="py-3 px-2 text-yellow-400 font-bold text-xs">
+                            {% if log.rnn_price %}${{ log.rnn_price|floatformat:2 }}{% else %}--{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
+<script>
+    try {
+        const chartElement = document.getElementById('predictionChart');
+        if (chartElement) {
+            const ctx = chartElement.getContext('2d');
+            const logsData = '{{ chart_logs|escapejs }}';
+            const logs = JSON.parse(logsData);
+
+            if (logs.length > 0) {
+                // Calculate dynamic Y-axis range
+                const allValues = logs.flatMap(l => [
+                    l.actual_price, l.arima_price, l.lr_price, l.lstm_price, l.rnn_price
+                ]).filter(v => v !== null && v !== undefined && !isNaN(v));
+
+                const minVal = allValues.length > 0 ? Math.min(...allValues) : 60000;
+                const maxVal = allValues.length > 0 ? Math.max(...allValues) : 80000;
+                const padding = 500;
+
+                // Plugin for Glow Effect
+                const shadowPlugin = {
+                    id: 'shadowPlugin',
+                    beforeDatasetDraw(chart, args, options) {
+                        const { ctx } = chart;
+                        ctx.save();
+                        ctx.shadowBlur = 10;
+                        ctx.shadowColor = args.meta.dataset.options.borderColor;
+                        ctx.shadowOffsetX = 0;
+                        ctx.shadowOffsetY = 4;
+                    },
+                    afterDatasetDraw(chart, args, options) {
+                        chart.ctx.restore();
+                    }
+                };
+
+                const getGradient = (chart, color) => {
+                    const { ctx, chartArea } = chart;
+                    if (!chartArea) return null;
+                    const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+                    gradient.addColorStop(0, color + '00');
+                    gradient.addColorStop(1, color + '1A'); // 10% opacity
+                    return gradient;
+                };
+
+                const labels = logs.map(l => {
+                    const date = new Date(l.timestamp);
+                    // Standard labels for x-axis
+                    return date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+                });
+
+                // Add forecast label if available
+                if (logs[logs.length - 1].forecast_timestamp) {
+                    const nextDate = new Date(logs[logs.length - 1].forecast_timestamp);
+                    labels.push(nextDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
+                }
+
+                const createPredictionData = (k) => {
+                    let d = [null];
+                    for (let i = 0; i < logs.length; i++) { d.push(logs[i][k]); }
+                    return d;
+                };
+
+                new Chart(ctx, {
+                    type: 'line',
+                    plugins: [shadowPlugin],
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Actual',
+                                data: logs.map(l => l.actual_price),
+                                borderColor: '#f8fafc',
+                                backgroundColor: (context) => getGradient(context.chart, '#f8fafc'),
+                                borderWidth: 3,
+                                tension: 0.4,
+                                pointRadius: 0,
+                                fill: true,
+                                spanGaps: true
+                            },
+                            {
+                                label: 'ARIMA',
+                                data: createPredictionData('arima_price'),
+                                borderColor: '#a855f7',
+                                borderWidth: 2,
+                                borderDash: [5, 5],
+                                tension: 0.4,
+                                pointRadius: 0,
+                                fill: false,
+                                spanGaps: true
+                            },
+                            {
+                                label: 'LR',
+                                data: createPredictionData('lr_price'),
+                                borderColor: '#3b82f6',
+                                backgroundColor: (context) => getGradient(context.chart, '#3b82f6'),
+                                borderWidth: 2,
+                                tension: 0.4,
+                                pointRadius: 0,
+                                fill: false,
+                                spanGaps: true
+                            },
+                            {
+                                label: 'LSTM',
+                                data: createPredictionData('lstm_price'),
+                                borderColor: '#22c55e',
+                                backgroundColor: (context) => getGradient(context.chart, '#22c55e'),
+                                borderWidth: 2,
+                                tension: 0.4,
+                                pointRadius: 0,
+                                fill: false,
+                                spanGaps: true
+                            },
+                            {
+                                label: 'RNN',
+                                data: createPredictionData('rnn_price'),
+                                borderColor: '#eab308',
+                                backgroundColor: (context) => getGradient(context.chart, '#eab308'),
+                                borderWidth: 2,
+                                tension: 0.4,
+                                pointRadius: 0,
+                                fill: false,
+                                spanGaps: true
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: { duration: 1200 },
+                        interaction: { intersect: false, mode: 'index' },
+                        plugins: {
+                            zoom: {
+                                zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'xy' },
+                                pan: { enabled: true, mode: 'xy' }
+                            },
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                align: 'end',
+                                labels: { color: '#94a3b8', usePointStyle: true, pointStyle: 'circle', padding: 20, font: { size: 11, weight: '600' } }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                                titleColor: '#f8fafc',
+                                bodyColor: '#cbd5e1',
+                                borderColor: 'rgba(255, 255, 255, 0.1)',
+                                borderWidth: 1,
+                                padding: 14,
+                                cornerRadius: 10,
+                                usePointStyle: true,
+                                callbacks: {
+                                    title: function (tooltipItems) {
+                                        if (!tooltipItems || tooltipItems.length === 0) return '';
+                                        const index = tooltipItems[0].dataIndex;
+
+                                        let timestamp;
+                                        if (index === logs.length) {
+                                            timestamp = logs[logs.length - 1].forecast_timestamp;
+                                        } else {
+                                            timestamp = logs[index].timestamp;
+                                        }
+
+                                        if (!timestamp) return 'Time Unknown';
+
+                                        const date = new Date(timestamp);
+                                        const dateStr = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+                                        const timeStr = date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
+                                        return `${dateStr}, ${timeStr}`;
+                                    },
+                                    label: function (context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) label += ': ';
+                                        if (context.parsed.y !== null) {
+                                            label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                min: Math.floor(minVal - padding),
+                                max: Math.ceil(maxVal + padding),
+                                grid: { color: 'rgba(255, 255, 255, 0.03)', drawBorder: false },
+                                ticks: { color: '#64748b', font: { size: 11 }, callback: (v) => '$' + v.toLocaleString() }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: '#64748b', font: { size: 11 }, maxRotation: 0 }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    } catch (err) {
+        console.error("Dashboard chart initialization failed:", err);
+    }
+</script>
+{% endblock %}
